@@ -27,24 +27,60 @@
         </ul>
       </div>
       <div>
-        <div class="font-medium mb-3">Contact</div>
-        <ul class="space-y-1 text-[14px] text-ink/80">
-          <li>✉️ <a class="link" href="mailto:<%= SUPPORT_EMAIL %>"><%= SUPPORT_EMAIL %></a></li>
-          <li>📍 Tbilisi, GE</li>
-        </ul>
-        <div class="mt-3">
-          <a href="https://www.dmca.com/" rel="nofollow noopener" target="_blank" title="DMCA Protected">
-            <img src="/public/img/dmca.png" alt="Protected by DMCA" style="height:56px;width:auto;">
-          </a>
+
+  <div>
+  <div class="font-medium mb-3">Contact</div>
+
+  <!-- Trái: thông tin | Phải: DMCA -->
+  <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-x-6 items-start">
+    <ul class="space-y-2 text-[14px] text-ink/80">
+      <!-- Email (icon cố định width để canh thẳng) -->
+       <li class="flex items-start gap-2">
+    <span class="inline-flex w-5 justify-center mt-[2px]">✉️</span>
+    <a class="link whitespace-nowrap" href="mailto:<%= SUPPORT_EMAIL %>">
+      <%= SUPPORT_EMAIL %>
+    </a>
+  </li>
+      <!-- Địa chỉ 2 dòng, không lệch -->
+      <li class="flex items-start gap-2">
+        <span class="inline-flex w-5 justify-center mt-[2px]">📍</span>
+        <div class="leading-snug">
+          500-1232<br>Higashishincho, Kuroishi-shi
         </div>
-      </div>
-    </div>
-    <div class="border-t">
-      <div class="max-w-7xl mx-auto px-6 py-5 text-[12px] text-ink/50 flex items-center justify-between">
-        <span>© <%= new Date().getFullYear() %> <%= SITE_NAME %>. All rights reserved.</span>
-        <span>VAT / Company · Social links</span>
-      </div>
-    </div>
+      </li>
+    </ul>
+
+    <!-- DMCA to, cố định bên phải; không ảnh hưởng text -->
+    <a href="https://www.dmca.com/" rel="nofollow noopener" target="_blank"
+       title="DMCA Protected" class="mt-3 md:mt-0 justify-self-end">
+      <img src="/public/img/dmca.png?v=4" alt="Protected by DMCA"
+           style="height:112px;width:auto;display:block;max-height:none;" />
+    </a>
+  </div>
+</div>
+
+<!-- Bottom bar -->
+<div class="border-t">
+  <div
+    class="max-w-7xl mx-auto px-6 h-12
+           flex items-center justify-between flex-nowrap
+           text-[12px] text-ink/50">
+
+    <!-- Trái: bản quyền -->
+    <span class="whitespace-nowrap">
+      © <%= new Date().getFullYear() %> <%= SITE_NAME %>. All rights reserved.
+    </span>
+
+    <!-- Phải: links -->
+    <nav class="whitespace-nowrap">
+      <a href="/vat" class="link">VAT / Company</a>
+      <span class="mx-1">·</span>
+      <a href="/social" class="link">Social links</a>
+    </nav>
+  </div>
+</div>
+
+
   </footer>
 </body>
 </html>
