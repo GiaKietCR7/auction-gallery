@@ -1,11 +1,8 @@
-// server.js — Supabase version (FULL)
-// ----------------------------------------------------
-// npm i @supabase/supabase-js pg multer helmet express-rate-limit nanoid bcryptjs
-// ----------------------------------------------------
+// server.js — Supabase version (PATCHED)
 
 import 'dotenv/config';
 import dns from 'dns';
-if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first'); // ưu tiên IPv4
+if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first');
 
 import path from 'path';
 import express from 'express';
@@ -23,30 +20,22 @@ const { Pool } = pkg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ====== ENV sanity check ======
+// ENV checks
 const REQUIRED = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'DATABASE_URL', 'SESSION_SECRET'];
-for (const k of REQUIRED) {
-  if (!process.env[k]) {
-    console.error(`[ENV MISSING] ${k} is required`);
-  }
-}
+for (const k of REQUIRED) if (!process.env[k]) console.error(`[ENV MISSING] ${k} is required`);
 
-// ====== Supabase client (Storage, etc) ======
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Supabase (Storage/API)
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-// ====== Postgres Pool (Supabase DB) ======
+// Postgres (DB)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  // timeouts hợp lý hơn trên Render
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 10_000,
 });
 
-// ====== Express app ======
+// Express
 const app = express();
 if (process.env.RENDER) app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
@@ -62,80 +51,66 @@ app.use((req, res, next) => {
   res.locals.SUPPORT_EMAIL = SUPPORT_EMAIL;
   next();
 });
-
 app.use(
-  helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false,
-  })
+  helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false })
 );
 app.use('/public', express.static(path.join(__dirname, 'public'), { maxAge: '7d', etag: true }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(express.json());
 app.use(rateLimit({ windowMs: 60 * 1000, max: 300 }));
-
 app.use(
   session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: !!process.env.RENDER,
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-    },
+    cookie: { httpOnly: true, sameSite: 'lax', secure: !!process.env.RENDER, maxAge: 1000 * 60 * 60 * 24 * 7 },
   })
 );
+
+// locals cho EJS
+function getImageUrl(p) {
+  return supabase.storage.from('images').getPublicUrl(p).data.publicUrl;
+}
 app.use((req, res, next) => {
-  // luôn đặt biến cho EJS để không bị undefined
   res.locals.currentUser = req.session?.user || null;
-  res.locals.getImageUrl = getImageUrl; // nếu head/partials cần dùng
+  res.locals.getImageUrl = getImageUrl;
   next();
 });
-// ====== Multer (memory) ======
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 8 * 1024 * 1024 }, // 8MB/ảnh
-});
 
-// ====== Helpers ======
+// Multer (memory)
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+
+// Helpers
 function computeEnded(row) {
   const endedByStatus = row.status && row.status !== 'active';
   const endedByTime = row.end_time ? Date.now() > new Date(row.end_time).getTime() : false;
   return endedByStatus || endedByTime;
 }
 
+// Ép numeric để view không lỗi .toFixed
 async function enrichItem(row) {
   const agg = await pool.query(
-    `SELECT COUNT(*)::int as bidcount, MAX(amount) as topbid FROM bids WHERE item_id=$1`,
+    'SELECT COUNT(*)::int AS bidcount, MAX(amount) AS topbid FROM bids WHERE item_id=$1',
     [row.id]
   );
   return {
     ...row,
+    start_price: row.start_price == null ? 0 : Number(row.start_price),
+    min_increment: row.min_increment == null ? 0 : Number(row.min_increment),
     bidcount: agg.rows[0]?.bidcount || 0,
-    topbid: agg.rows[0]?.topbid || null,
+    topbid: agg.rows[0]?.topbid == null ? null : Number(agg.rows[0].topbid),
     ended: computeEnded(row),
   };
 }
 
-function getImageUrl(p) {
-  return supabase.storage.from('images').getPublicUrl(p).data.publicUrl;
-}
-
 function requireAdmin(req, res, next) {
   if (req.session?.user?.role === 'admin') return next();
-  const key =
-    req.get('x-admin-key') ||
-    req.query.admin_key ||
-    req.body?.admin_key;           // ← nhận key từ body khi POST form
+  const key = req.get('x-admin-key') || req.query.admin_key || req.body?.admin_key;
   if (key && key === ADMIN_KEY) return next();
   return res.status(403).send('Forbidden');
 }
 
-// ====== Routes ======
-
-// Home + pagination + search
+// Routes
 app.get('/', async (req, res, next) => {
   try {
     const PAGE_SIZE = 8;
@@ -144,10 +119,7 @@ app.get('/', async (req, res, next) => {
 
     let whereSQL = '';
     const params = [];
-    if (q) {
-      whereSQL = `WHERE title ILIKE $1 OR description ILIKE $1`;
-      params.push(`%${q}%`);
-    }
+    if (q) { whereSQL = `WHERE title ILIKE $1 OR description ILIKE $1`; params.push(`%${q}%`); }
 
     const totalRow = await pool.query(`SELECT COUNT(*)::int AS cnt FROM items ${whereSQL}`, params);
     const total = totalRow.rows[0]?.cnt || 0;
@@ -161,23 +133,11 @@ app.get('/', async (req, res, next) => {
     );
 
     const full = await Promise.all(items.rows.map(enrichItem));
-    const pager = {
-      page: pageSafe,
-      total,
-      totalPages,
-      hasPrev: pageSafe > 1,
-      hasNext: pageSafe < totalPages,
-      prev: pageSafe - 1,
-      next: pageSafe + 1,
-      q,
-    };
+    const pager = { page: pageSafe, total, totalPages, hasPrev: pageSafe > 1, hasNext: pageSafe < totalPages, prev: pageSafe - 1, next: pageSafe + 1, q };
     res.render('index', { items: full, pager, q, getImageUrl });
-  } catch (e) {
-    next(e);
-  }
+  } catch (e) { next(e); }
 });
 
-// Item detail
 app.get('/item/:id', async (req, res, next) => {
   try {
     const id = req.params.id;
@@ -187,53 +147,49 @@ app.get('/item/:id', async (req, res, next) => {
     const images = await pool.query('SELECT * FROM images WHERE item_id=$1 ORDER BY sort_order, id', [id]);
     const gallery = images.rows.length ? images.rows.map((i) => i.image_path) : [itemRes.rows[0].image_path];
     const bids = await pool.query('SELECT bidder, amount FROM bids WHERE item_id=$1 ORDER BY amount DESC', [id]);
-    const full = await enrichItem(itemRes.rows[0]);
 
+    const full = await enrichItem(itemRes.rows[0]);
     res.render('item', { item: full, gallery, imagesFull: images.rows, bids: bids.rows, getImageUrl });
-  } catch (e) {
-    next(e);
-  }
+  } catch (e) { next(e); }
 });
 
-// Place bid
+// Bid
 app.post('/item/:id/bid', async (req, res, next) => {
   try {
     const id = req.params.id;
     const bidder = (req.body.bidder || '').trim().slice(0, 60) || 'Ẩn danh';
-    const amount = parseFloat(req.body.amount);
+    const amount = Number(req.body.amount);
 
     const itemRes = await pool.query('SELECT * FROM items WHERE id=$1', [id]);
-    const item = itemRes.rows[0];
+    const item = await enrichItem(itemRes.rows[0]);
     if (!item) return res.status(404).send('Item not found');
-    if (computeEnded(item) || item.status !== 'active') return res.status(400).send('Auction ended');
+    if (item.ended || item.status !== 'active') return res.status(400).send('Auction ended');
 
     const agg = await pool.query('SELECT COALESCE(MAX(amount),0) as top FROM bids WHERE item_id=$1', [id]);
-    const currentTop = parseFloat(agg.rows[0]?.top || 0);
-    const minBase = Math.max(currentTop, parseFloat(item.start_price));
-    const minReq = minBase + (parseFloat(item.min_increment) || 1);
+    const currentTop = Number(agg.rows[0]?.top || 0);
+    const minBase = Math.max(currentTop, Number(item.start_price));
+    const minReq = minBase + (Number(item.min_increment) || 1);
     if (!Number.isFinite(amount) || amount < minReq) throw new Error(`Bid must be >= ${minReq}`);
 
     await pool.query('INSERT INTO bids(item_id,bidder,amount) VALUES($1,$2,$3)', [id, bidder, amount]);
     res.redirect(`/item/${id}`);
-  } catch (e) {
-    next(e);
-  }
+  } catch (e) { next(e); }
 });
 
-// Upload form
+// Admin upload
 app.get('/admin/upload', requireAdmin, (req, res) => {
   res.render('upload', { adminKey: req.query.admin_key || '' });
 });
 
-// Handle upload — Multer phải chạy TRƯỚC để parse multipart
+// Multer phải chạy TRƯỚC để parse multipart (để req.body.admin_key có giá trị)
 app.post('/admin/upload', upload.array('images', 12), requireAdmin, async (req, res, next) => {
   try {
     const { title, description, start_price, min_increment, end_time } = req.body;
-    if (!req.files || !req.files.length) throw new Error('Chưa chọn ảnh');
+    if (!req.files?.length) throw new Error('Chưa chọn ảnh');
 
     const id = nanoid(10);
 
-    // 1) Tạo item trước để đảm bảo FK hợp lệ
+    // 1) tạo item trước (để đảm bảo FK images)
     await pool.query(
       `INSERT INTO items(id, title, description, image_path, start_price, min_increment, end_time, status, owner_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,'active',$8)`,
@@ -242,17 +198,16 @@ app.post('/admin/upload', upload.array('images', 12), requireAdmin, async (req, 
         String(title || '').trim().slice(0, 200),
         String(description || '').trim(),
         '/uploads/placeholder.png',
-        parseFloat(start_price) || 0,
-        parseFloat(min_increment) || 1,
+        Number(start_price) || 0,
+        Number(min_increment) || 1,
         end_time ? new Date(end_time).toISOString() : null,
         req.session.user?.id || null,
       ]
     );
 
-    // 2) Upload ảnh + insert bảng images
+    // 2) upload ảnh + insert images
     let order = 0;
     let firstPath = null;
-
     for (const f of req.files) {
       const ext = (f.mimetype?.split('/')[1] || 'bin').toLowerCase();
       const objectName = `items/${id}/${Date.now()}_${nanoid(6)}.${ext}`;
@@ -265,24 +220,18 @@ app.post('/admin/upload', upload.array('images', 12), requireAdmin, async (req, 
       if (!firstPath) firstPath = objectName;
 
       await pool.query('INSERT INTO images(item_id, image_path, sort_order) VALUES($1,$2,$3)', [
-        id,
-        objectName,
-        order++,
+        id, objectName, order++,
       ]);
     }
 
-    // 3) Cập nhật ảnh đại diện
-    if (firstPath) {
-      await pool.query('UPDATE items SET image_path=$1 WHERE id=$2', [firstPath, id]);
-    }
+    // 3) cập nhật ảnh đại diện
+    if (firstPath) await pool.query('UPDATE items SET image_path=$1 WHERE id=$2', [firstPath, id]);
 
     res.redirect(`/item/${id}`);
-  } catch (e) {
-    next(e);
-  }
+  } catch (e) { next(e); }
 });
 
-// ====== Auth (đủ dùng cho admin) ======
+// Auth
 app.get('/login', (req, res) => res.render('auth-login'));
 app.post('/login', async (req, res, next) => {
   try {
@@ -292,27 +241,15 @@ app.post('/login', async (req, res, next) => {
     ]);
     const u = q.rows[0];
     if (!u) return res.status(401).render('auth-login', { error: 'Tài khoản không tồn tại' });
-
     const ok = await bcrypt.compare(String(password || ''), u.password_hash);
     if (!ok) return res.status(401).render('auth-login', { error: 'Sai mật khẩu' });
-
     req.session.user = { id: u.id, email: u.email, name: u.display_name, role: u.role };
     res.redirect('/');
-  } catch (e) {
-    next(e);
-  }
+  } catch (e) { next(e); }
 });
-app.post('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/'));
-});
+app.post('/logout', (req, res) => { req.session.destroy(() => res.redirect('/')); });
 
-// ====== Static pages ======
-app.get('/about', (req, res) => res.render('about'));
-app.get('/terms', (req, res) => res.render('terms'));
-app.get('/privacy', (req, res) => res.render('privacy'));
-app.get('/contact', (req, res) => res.render('contact'));
-
-// ====== Health & Supabase check ======
+// Health & Storage checks (gỡ khi xong)
 app.get('/_health', async (req, res) => {
   try {
     const r = await pool.query('select now() as now');
@@ -322,19 +259,18 @@ app.get('/_health', async (req, res) => {
   }
 });
 app.get('/_sb', async (req, res) => {
-  const { data, error } = await supabase.storage.from('images').list({ limit: 1 });
+  // prefix phải là string: '' = root
+  const { data, error } = await supabase.storage.from('images').list('', { limit: 1 });
   res.json({ ok: !error, error: error?.message, data });
 });
 
-// ====== 404 & error handler ======
+// 404 & error
 app.use((req, res) => res.status(404).render('404'));
 app.use((err, req, res, next) => {
   console.error('❌', err);
   res.status(500).send(err.message || 'Internal Error');
 });
 
-// ====== Boot ======
+// Boot
 const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`✅ App on http://localhost:${port}`);
-});
+app.listen(port, () => { console.log(`✅ App on http://localhost:${port}`); });
