@@ -14,8 +14,6 @@ import { nanoid } from 'nanoid';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import pkg from 'pg';
-import bcrypt from 'bcrypt';
-
 let bcrypt;
 try {
   ({ default: bcrypt } = await import('bcrypt'));      // native
