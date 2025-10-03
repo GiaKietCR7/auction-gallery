@@ -52,14 +52,6 @@ const SITE_NAME = process.env.SITE_NAME || 'Auction Gallery PRO';
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@example.com';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'admin123';
 
-app.use((req, res, next) => {
-  res.locals.SITE_NAME = SITE_NAME;   // <- để head.ejs dùng được
-  res.locals.SUPPORT_EMAIL = SUPPORT_EMAIL;
-  res.locals.currentUser = req.session?.user || null;
-  res.locals.getImageUrl = (p) => supabase.storage.from('images').getPublicUrl(p).data.publicUrl;
-  next();
-});
-
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use('/public', express.static(path.join(__dirname, 'public'), { maxAge: '7d', etag: true }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
@@ -71,6 +63,15 @@ app.use(session({
   saveUninitialized: false,
   cookie: { httpOnly: true, sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', secure: !!process.env.RENDER, maxAge: 1000 * 60 * 60 * 24 * 7 },
 }));
+
+app.use((req, res, next) => {
+  res.locals.SITE_NAME = SITE_NAME;   // <- để head.ejs dùng được
+  res.locals.SUPPORT_EMAIL = SUPPORT_EMAIL;
+  res.locals.currentUser = req.session?.user || null;
+  res.locals.getImageUrl = (p) => supabase.storage.from('images').getPublicUrl(p).data.publicUrl;
+  next();
+});
+
 
 // ===== Multer (memory) =====
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
