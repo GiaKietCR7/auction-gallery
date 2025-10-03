@@ -25,11 +25,11 @@
 
     <div class="border rounded-2xl p-5">
       <div class="grid grid-cols-2 gap-4 text-[14px]">
-        <div>Giá khởi điểm</div><div class="text-right font-medium">$<%= item.start_price.toFixed(2) %></div>
-        <div>Bước giá tối thiểu</div><div class="text-right font-medium">$<%= item.min_increment.toFixed(2) %></div>
-        <div>Giá cao nhất</div><div class="text-right font-medium">$<%= (item.topBid ?? item.start_price).toFixed(2) %></div>
-        <div>Lượt đặt giá</div><div class="text-right"><%= item.bidCount %></div>
-        <div>Kết thúc</div>
+        <div>Starting price</div><div class="text-right font-medium">$<%= item.start_price.toFixed(2) %></div>
+        <div>Minimum increment</div><div class="text-right font-medium">$<%= item.min_increment.toFixed(2) %></div>
+        <div>Highest bid</div><div class="text-right font-medium">$<%= (item.topBid ?? item.start_price).toFixed(2) %></div>
+        <div>Total bids</div><div class="text-right"><%= item.bidCount %></div>
+        <div>Ends</div>
         <div class="text-right">
           <span id="endTime" data-end="<%= item.end_time ? new Date(item.end_time).toISOString() : '' %>">
             <%= item.end_time ? new Date(item.end_time).toLocaleString() : '—' %>
@@ -40,52 +40,54 @@
     </div>
 
     <p class="mt-4 text-sm text-ink/60 flex items-center gap-2">
-      © <span class="font-medium"><%= owner ? owner.display_name : "Ẩn danh" %></span>
+      © <span class="font-medium"><%= owner ? owner.display_name : "Anonymous" %></span>
       <% if (owner && owner.verified) { %>
-        <span title="Đã xác minh" class="inline-flex items-center gap-1 text-[11px] border px-2 py-0.5 rounded-full">
-          ✔️ Đã xác minh
+        <span title="Verified" class="inline-flex items-center gap-1 text-[11px] border px-2 py-0.5 rounded-full">
+          ✔️ Verified
         </span>
       <% } %>
     </p>
 
     <% if (!item.ended && item.status==='active') { %>
       <form action="/item/<%= item.id %>/bid" method="POST" class="border rounded-2xl p-5 space-y-3">
-        <div class="font-medium">Đặt giá</div>
-        <input type="text" name="bidder" placeholder="Tên của bạn" required class="border rounded-full px-4 py-2 w-full text-[14px]" />
-        <input type="number" step="0.01" min="0" name="amount" placeholder="Số tiền ($)" required class="border rounded-full px-4 py-2 w-full text-[14px]" />
-        <button class="bg-ink text-white px-5 py-2 rounded-full text-[14px] hover:opacity-90">Đặt giá</button>
-        <p class="text-[12px] text-ink/50">Tối thiểu = giá hiện tại + bước giá.</p>
+        <div class="font-medium">Place a bid</div>
+        <input type="text" name="bidder" placeholder="Your name" required class="border rounded-full px-4 py-2 w-full text-[14px]" />
+        <input type="number" step="0.01" min="0" name="amount" placeholder="Amount ($)" required class="border rounded-full px-4 py-2 w-full text-[14px]" />
+        <button class="bg-ink text-white px-5 py-2 rounded-full text-[14px] hover:opacity-90">Place Bid</button>
+        <p class="text-[12px] text-ink/50">Minimum = current price + increment step.</p>
       </form>
     <% } else { %>
-      <div class="border rounded-2xl p-5 text-ink/60">Phiên đấu giá đã kết thúc.</div>
+      <div class="border rounded-2xl p-5 text-ink/60">This auction has ended.</div>
     <% } %>
-<% if (currentUser && (currentUser.role === 'admin' || (owner && currentUser.id === owner.id))) { %>
-  <form action="/item/<%= item.id %>/delete" method="POST"
-        onsubmit="return confirm('Xóa toàn bộ bài này? Hành động không thể hoàn tác!');"
-        class="mt-4">
-    <button class="text-[12px] bg-red-600 text-white px-4 py-1.5 rounded-full">Xóa bài</button>
-  </form>
 
-  <div class="mt-6">
-    <div class="font-medium mb-2">Gỡ ảnh trong bài</div>
-    <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;">
-      <% imagesFull.forEach(function(img){ %>
-        <div class="border p-2 rounded text-center">
-          <img src="<%= img.image_path %>" style="max-width:100%;height:120px;object-fit:cover" alt="">
-          <form action="/item/<%= item.id %>/image/<%= img.id %>/delete" method="POST"
-                onsubmit="return confirm('Gỡ ảnh này?');" class="mt-2">
-            <button class="text-[12px] border px-3 py-1 rounded-full">Gỡ ảnh</button>
-          </form>
+    <% if (currentUser && (currentUser.role === 'admin' || (owner && currentUser.id === owner.id))) { %>
+      <form action="/item/<%= item.id %>/delete" method="POST"
+            onsubmit="return confirm('Delete this item? This action cannot be undone!');"
+            class="mt-4">
+        <button class="text-[12px] bg-red-600 text-white px-4 py-1.5 rounded-full">Delete item</button>
+      </form>
+
+      <div class="mt-6">
+        <div class="font-medium mb-2">Images in this item</div>
+        <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;">
+          <% imagesFull.forEach(function(img){ %>
+            <div class="border p-2 rounded text-center">
+              <img src="<%= img.image_path %>" style="max-width:100%;height:120px;object-fit:cover" alt="">
+              <form action="/item/<%= item.id %>/image/<%= img.id %>/delete" method="POST"
+                    onsubmit="return confirm('Remove this image?');" class="mt-2">
+                <button class="text-[12px] border px-3 py-1 rounded-full">Remove</button>
+              </form>
+            </div>
+          <% }) %>
         </div>
-      <% }) %>
-    </div>
-  </div>
-<% } %>
+      </div>
+    <% } %>
+
     <div class="border rounded-2xl p-5">
       <div class="flex items-center justify-between mb-2">
-        <div class="font-medium">Lịch sử đặt giá</div>
-        <form action="/item/<%= item.id %>/close" method="POST" onsubmit="return confirm('Đóng phiên?');">
-          <button class="text-[12px] border px-3 py-1 rounded-full">Đóng phiên (Admin)</button>
+        <div class="font-medium">Bid History</div>
+        <form action="/item/<%= item.id %>/close" method="POST" onsubmit="return confirm('Close this auction?');">
+          <button class="text-[12px] border px-3 py-1 rounded-full">Close Auction (Admin)</button>
         </form>
       </div>
 
@@ -97,7 +99,7 @@
           </li>
         <% }) %>
         <% if (!bids.length) { %>
-          <li class="py-2 text-ink/50 text-[14px]">Chưa có lượt đặt giá.</li>
+          <li class="py-2 text-ink/50 text-[14px]">No bids yet.</li>
         <% } %>
       </ul>
     </div>
@@ -105,22 +107,22 @@
 </div>
 
 <script>
-(function(){
+(function () {
   // countdown
   const el = document.getElementById('endTime');
   const cd = document.getElementById('countdown');
   if (el && cd) {
     const iso = el.dataset.end;
     if (iso) {
-      function tick(){
+      function tick() {
         const end = new Date(iso).getTime();
         const now = Date.now();
         const diff = end - now;
-        if (diff <= 0) { cd.textContent = 'Đã hết thời gian.'; return; }
-        const h = Math.floor(diff/3.6e6);
-        const m = Math.floor((diff%3.6e6)/6e4);
-        const s = Math.floor((diff%6e4)/1000);
-        cd.textContent = `Còn lại: ${h}h ${m}m ${s}s`;
+        if (diff <= 0) { cd.textContent = "Time's up."; return; }
+        const h = Math.floor(diff / 3.6e6);
+        const m = Math.floor((diff % 3.6e6) / 6e4);
+        const s = Math.floor((diff % 6e4) / 1000);
+        cd.textContent = `Time left: ${h}h ${m}m ${s}s`;
         requestAnimationFrame(tick);
       }
       tick();
@@ -133,19 +135,20 @@
   const thumbs = document.querySelectorAll('.thumb');
   let cur = 0;
 
-  function show(i){
+  function show(i) {
     cur = (i + gallery.length) % gallery.length;
     main.src = gallery[cur];
-    thumbs.forEach((t,idx)=>{
-      if(idx===cur){ t.classList.add('ring-2','ring-black'); } else { t.classList.remove('ring-2','ring-black'); }
+    thumbs.forEach((t, idx) => {
+      if (idx === cur) { t.classList.add('ring-2', 'ring-black'); }
+      else { t.classList.remove('ring-2', 'ring-black'); }
     });
   }
 
-  thumbs.forEach(t=> t.addEventListener('click', ()=> show(parseInt(t.dataset.idx,10))));
+  thumbs.forEach(t => t.addEventListener('click', () => show(parseInt(t.dataset.idx, 10))));
   const prev = document.getElementById('prevBtn');
   const next = document.getElementById('nextBtn');
-  if (prev) prev.addEventListener('click', ()=> show(cur-1));
-  if (next) next.addEventListener('click', ()=> show(cur+1));
+  if (prev) prev.addEventListener('click', () => show(cur - 1));
+  if (next) next.addEventListener('click', () => show(cur + 1));
 })();
 </script>
 
