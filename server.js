@@ -128,7 +128,7 @@ function requireAdmin(req, res, next) {
   const key =
     req.get('x-admin-key') ||
     req.query.admin_key ||
-    req.body?.admin_key;           // ← thêm dòng này
+    req.body?.admin_key;           // ← nhận key từ body khi POST form
   if (key && key === ADMIN_KEY) return next();
   return res.status(403).send('Forbidden');
 }
@@ -220,11 +220,10 @@ app.post('/item/:id/bid', async (req, res, next) => {
   }
 });
 
-// Upload form (UI đã có sẵn ejs)
+// Upload form
 app.get('/admin/upload', requireAdmin, (req, res) => {
   res.render('upload', { adminKey: req.query.admin_key || '' });
 });
-
 
 // Handle upload — INSERT item trước, rồi upload ảnh + insert images, cuối cùng update image_path
 app.post('/admin/upload', requireAdmin, upload.array('images', 12), async (req, res, next) => {
@@ -307,13 +306,13 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/'));
 });
 
-// ====== Static pages (nếu có ejs tương ứng) ======
+// ====== Static pages ======
 app.get('/about', (req, res) => res.render('about'));
 app.get('/terms', (req, res) => res.render('terms'));
 app.get('/privacy', (req, res) => res.render('privacy'));
 app.get('/contact', (req, res) => res.render('contact'));
 
-// ====== Health & Supabase check (gỡ sau khi xong) ======
+// ====== Health & Supabase check ======
 app.get('/_health', async (req, res) => {
   try {
     const r = await pool.query('select now() as now');
