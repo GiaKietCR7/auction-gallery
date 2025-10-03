@@ -15,11 +15,3 @@ services:
         sync: false
       - key: ADMIN_KEY
         sync: false
-    disk:
-      name: persistent-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
-    # additionalDisks:
-    #   - name: uploads
-    #     mountPath: /opt/render/project/src/uploads
-    #     sizeGB: 1
