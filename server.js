@@ -396,8 +396,12 @@ app.post('/login', express.urlencoded({ extended: true }), async (req, res) => {
 });
 app.post('/logout', (req, res) => { req.session.destroy(() => res.redirect('/')); });
 
-// Đăng ký
-app.get('/register', (req, res) => res.render('register'));  // <-- trùng tên file
+/// Contact
+app.get('/contact', (req, res) => res.render('contact')); // phải trùng tên file contact.ejs
+
+// Register
+app.get('/register', (req, res) => res.render('register')); // phải trùng tên file register.ejs
+app.get('/signup',  (req, res) => res.redirect('/register')); // alias nếu lỡ có nơi trỏ /signup
 
 app.post('/register', express.urlencoded({ extended: true }), async (req, res, next) => {
   try {
@@ -414,6 +418,7 @@ app.post('/register', express.urlencoded({ extended: true }), async (req, res, n
       'INSERT INTO users(email, password_hash, display_name, verified, role) VALUES(?,?,?,?,?)',
       email, hash, display, 0, 'user'
     );
+
     req.session.user = { id: r.lastID, email, display_name: display, role: 'user', verified: 0 };
     res.redirect('/');
   } catch (e) { next(e); }
