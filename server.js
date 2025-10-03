@@ -231,7 +231,7 @@ app.post('/admin/upload', upload.array('images', 12), requireAdmin, async (req, 
   } catch (e) { next(e); }
 });
 
-// Auth
+// --- Auth ---
 app.get('/login', (req, res) => res.render('auth-login', { email: '' }));
 
 app.post('/login', async (req, res, next) => {
@@ -244,8 +244,8 @@ app.post('/login', async (req, res, next) => {
       [email]
     );
     const u = q.rows[0];
-    if (!u) return res.status(401).render('auth-login', { error: 'Tài khoản không tồn tại', email });
 
+    if (!u)  return res.status(401).render('auth-login', { error: 'Tài khoản không tồn tại', email });
     const ok = await bcrypt.compare(password, u.password_hash);
     if (!ok) return res.status(401).render('auth-login', { error: 'Sai mật khẩu', email });
 
@@ -253,6 +253,11 @@ app.post('/login', async (req, res, next) => {
     return res.redirect('/');
   } catch (e) { next(e); }
 });
+
+app.post('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/'));
+});
+
 
 
 // Health & Storage checks (gỡ khi xong)
@@ -276,6 +281,8 @@ app.use((err, req, res, next) => {
   console.error('❌', err);
   res.status(500).send(err.message || 'Internal Error');
 });
+
+
 
 // Boot
 const port = process.env.PORT || 3000;
