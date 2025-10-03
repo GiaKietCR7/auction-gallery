@@ -1,9 +1,8 @@
 {
   "name": "auction-gallery",
   "version": "1.0.0",
-  "engines": {
-    "node": ">=18 <23"
-  },
+  "type": "module",
+  "engines": { "node": ">=18 <23" },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon --ext js,ejs --watch server.js --watch views --watch public server.js",
@@ -23,8 +22,10 @@
     "nanoid": "^5.0.6",
     "pg": "^8.16.3"
   },
+  "optionalDependencies": {
+    "bcrypt": "^5.1.1"
+  },
   "devDependencies": {
-    "nodemon": "^3.1.10",
-    "bcrypt": "^5.1.1",
+    "nodemon": "^3.1.10"
   }
 }
