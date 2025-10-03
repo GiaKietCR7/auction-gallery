@@ -1,0 +1,46 @@
+<%- include('partials/head', { title: 'Quản lý Users' }) %>
+
+<h1 class="text-2xl font-serif mb-6">Danh sách người dùng</h1>
+
+<table class="w-full border text-sm">
+  <thead class="bg-mist">
+    <tr>
+      <th class="p-2 border">ID</th>
+      <th class="p-2 border">Tên hiển thị</th>
+      <th class="p-2 border">Email</th>
+      <th class="p-2 border">Role</th>
+      <th class="p-2 border">Trạng thái</th>
+      <th class="p-2 border">Hành động</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% users.forEach(u => { %>
+      <tr>
+        <td class="p-2 border"><%= u.id %></td>
+        <td class="p-2 border"><%= u.display_name %></td>
+        <td class="p-2 border"><%= u.email %></td>
+        <td class="p-2 border"><%= u.role %></td>
+        <td class="p-2 border">
+          <% if (u.verified) { %>
+            <span class="text-green-600">✔️ Đã xác minh</span>
+          <% } else { %>
+            <span class="text-red-500">Chưa</span>
+          <% } %>
+        </td>
+        <td class="p-2 border">
+          <% if (!u.verified) { %>
+            <form method="POST" action="/admin/verify/<%= u.id %>?key=admin123" class="inline">
+              <button class="px-3 py-1 bg-green-600 text-white rounded">Xác minh</button>
+            </form>
+          <% } else { %>
+            <form method="POST" action="/admin/unverify/<%= u.id %>?key=admin123" class="inline">
+              <button class="px-3 py-1 bg-gray-500 text-white rounded">Gỡ tích xanh</button>
+            </form>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %>
+  </tbody>
+</table>
+
+<%- include('partials/foot') %>

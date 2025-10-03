@@ -1,0 +1,57 @@
+<%- include('partials/head', { title: 'Gallery' }) %>
+
+<section class="grid md:grid-cols-2 gap-8 items-center mb-10">
+  <div>
+    <h1 class="font-serif text-4xl md:text-5xl leading-tight">Khám phá & đấu giá tác phẩm <span class="text-ink/80">được tuyển chọn</span></h1>
+    <p class="mt-4 text-ink/70 max-w-xl">Chúng tôi tuyển chọn các tác phẩm/ảnh chất lượng, đảm bảo nguồn gốc và trải nghiệm mua bán an toàn.</p>
+    <div class="mt-6 flex gap-3">
+      <a href="/admin/upload" class="bg-ink text-white px-5 py-2 rounded-full text-[14px] hover:opacity-90 transition">Đăng tác phẩm</a>
+      <a href="/about" class="border px-5 py-2 rounded-full text-[14px] hover:border-ink transition">Tìm hiểu</a>
+    </div>
+  </div>
+  <div class="aspect-[5/3] rounded-2xl bg-mist shadow-card"></div>
+</section>
+
+<section class="mb-6 flex flex-col md:flex-row gap-3 items-center">
+  <form method="GET" class="flex-1 flex gap-3">
+    <input class="border rounded-full px-4 py-2 w-full text-[14px]" type="text" name="q" placeholder="Tìm kiếm tác phẩm..." value="<%= q %>"/>
+    <select class="border rounded-full px-4 py-2 text-[14px]" name="status">
+      <option value="">Trạng thái</option>
+      <option value="active" <%= status==='active'?'selected':'' %>>Đang mở</option>
+      <option value="ended"  <%= status==='ended'?'selected':'' %>>Đã kết thúc</option>
+    </select>
+    <select class="border rounded-full px-4 py-2 text-[14px]" name="sort">
+      <option value="">Sắp xếp</option>
+      <option value="new" <%= sort==='new'?'selected':'' %>>Mới nhất</option>
+      <option value="price" <%= sort==='price'?'selected':'' %>>Giá cao</option>
+    </select>
+    <button class="border px-5 py-2 rounded-full text-[14px] hover:border-ink">Lọc</button>
+  </form>
+</section>
+
+<ul class="grid gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+  <% if (!items.length) { %>
+    <p class="text-ink/60">Chưa có tác phẩm. Hãy thêm từ trang Đăng tác phẩm.</p>
+  <% } %>
+  <% items.forEach(it => { const price = it.topBid ?? it.start_price; %>
+    <li class="group">
+      <a href="/item/<%= it.id %>" class="block">
+        <div class="relative overflow-hidden rounded-2xl shadow-card group-hover:shadow-hover transition">
+          <img src="<%= (it.cover_image || it.image_path) %>" alt="<%= it.title %>" class="w-full h-72 object-cover group-hover:scale-[1.02] transition" />
+        </div>
+        <div class="mt-3">
+          <h3 class="font-medium tracking-wide"><%= it.title %></h3>
+          <div class="text-[14px] text-ink/60">
+            Hiện tại: <span class="text-ink font-medium">$<%= price?.toFixed?price.toFixed(2):price %></span>
+          </div>
+          <div class="text-[12px] text-ink/50 mt-1">
+            © <%= it.display_name || "Ẩn danh" %>
+            <% if (it.verified) { %> ✔️ <% } %>
+          </div>
+        </div>
+      </a>
+    </li>
+  <% }) %>
+</ul>
+
+<%- include('partials/foot') %>

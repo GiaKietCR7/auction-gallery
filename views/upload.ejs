@@ -1,0 +1,40 @@
+<%- include('partials/head', { title: 'Đăng tác phẩm' }) %>
+
+<h1 class="font-serif text-3xl mb-6">Đăng tác phẩm</h1>
+
+<form action="/admin/upload" method="POST" enctype="multipart/form-data" class="space-y-4">
+  <div>
+    <label class="block text-sm">Tiêu đề</label>
+    <input name="title" required class="border rounded px-3 py-2 w-full" />
+  </div>
+
+  <div>
+    <label class="block text-sm">Mô tả</label>
+    <textarea name="description" rows="4" class="border rounded px-3 py-2 w-full"></textarea>
+  </div>
+
+  <div class="grid grid-cols-3 gap-3">
+    <div>
+      <label class="block text-sm">Giá khởi điểm</label>
+      <input name="start_price" type="number" step="0.01" min="0" value="0" class="border rounded px-3 py-2 w-full" />
+    </div>
+    <div>
+      <label class="block text-sm">Bước giá tối thiểu</label>
+      <input name="min_increment" type="number" step="0.01" min="0" value="1" class="border rounded px-3 py-2 w-full" />
+    </div>
+    <div>
+      <label class="block text-sm">Kết thúc (tuỳ chọn)</label>
+      <input name="end_time" type="datetime-local" class="border rounded px-3 py-2 w-full" />
+    </div>
+  </div>
+
+  <div>
+    <label class="block text-sm">Ảnh tác phẩm (chọn nhiều)</label>
+    <input type="file" name="images" accept="image/*" multiple class="border rounded px-3 py-2 w-full" />
+    <p class="text-xs text-gray-500 mt-1">Chọn 1–12 ảnh. Ảnh đầu tiên sẽ làm ảnh bìa.</p>
+  </div>
+
+  <button class="bg-ink text-white rounded px-4 py-2">Đăng tác phẩm</button>
+</form>
+
+<%- include('partials/foot') %>

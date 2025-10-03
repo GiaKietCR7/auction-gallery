@@ -1,0 +1,33 @@
+<%- include('partials/head', { title: 'Liên hệ' }) %>
+
+<div class="max-w-2xl">
+  <h1 class="font-serif text-4xl mb-6">Liên hệ</h1>
+
+  <% if (typeof success !== 'undefined' && success) { %>
+    <div class="border rounded-xl p-4 bg-mist text-ink/80 mb-6">✅ Gửi liên hệ thành công. Chúng tôi phản hồi trong 24h làm việc.</div>
+  <% } %>
+
+  <form action="/contact" method="POST" class="space-y-5">
+    <input type="text" name="website" class="hidden" tabindex="-1" autocomplete="off">
+    <div>
+      <label class="block text-[13px] text-ink/60 mb-1">Họ tên</label>
+      <input name="name" required class="border rounded-full px-4 py-2 w-full text-[14px]" />
+    </div>
+    <div>
+      <label class="block text-[13px] text-ink/60 mb-1">Email</label>
+      <input name="email" type="email" required class="border rounded-full px-4 py-2 w-full text-[14px]" />
+    </div>
+    <div>
+      <label class="block text-[13px] text-ink/60 mb-1">Chủ đề</label>
+      <input name="subject" class="border rounded-full px-4 py-2 w-full text-[14px]" />
+    </div>
+    <div>
+      <label class="block text-[13px] text-ink/60 mb-1">Nội dung</label>
+      <textarea name="message" rows="5" required class="border rounded-2xl px-4 py-3 w-full text-[14px]"></textarea>
+    </div>
+    <button class="bg-ink text-white px-6 py-2 rounded-full text-[14px] hover:opacity-90">Gửi</button>
+    <p class="text-[12px] text-ink/50">Chúng tôi tôn trọng quyền riêng tư & bảo vệ dữ liệu cá nhân.</p>
+  </form>
+</div>
+
+<%- include('partials/foot') %>

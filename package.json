@@ -1,0 +1,12 @@
+{
+  "name": "auction-gallery",
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=18 <23"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "start:prod": "NODE_ENV=production node server.js"
+  }
+}

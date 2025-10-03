@@ -1,0 +1,11 @@
+<%- include('partials/head', { title:'Đăng nhập' }) %>
+<div class="max-w-md mx-auto">
+  <h1 class="font-serif text-3xl mb-6">Đăng nhập</h1>
+  <form action="/login" method="POST" class="space-y-4">
+    <input type="hidden" name="next" value="<%= next || '/' %>">
+    <div><label class="block text-sm">Email</label><input name="email" type="email" required class="border rounded-full px-4 py-2 w-full"></div>
+    <div><label class="block text-sm">Mật khẩu</label><input name="password" type="password" required class="border rounded-full px-4 py-2 w-full"></div>
+    <button class="bg-ink text-white px-5 py-2 rounded-full">Đăng nhập</button>
+  </form>
+</div>
+<%- include('partials/foot') %>
