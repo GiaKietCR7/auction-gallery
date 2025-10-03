@@ -4,7 +4,7 @@ services:
     env: node
     plan: free
     buildCommand: "npm install"
-    startCommand: "npm run start"
+    startCommand: "node server.js"
     autoDeploy: true
     envVars:
       - key: NODE_ENV
@@ -15,3 +15,5 @@ services:
         sync: false
       - key: ADMIN_KEY
         sync: false
+      - key: DB_FILE
+        value: /tmp/app.db

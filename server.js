@@ -18,6 +18,10 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+// === DB PATH (hỗ trợ free tier Render) ===
+const DATA_DIR = process.env.DB_DIR || path.join(__dirname, 'data');
+// Ưu tiên biến môi trường DB_FILE; nếu không có thì dùng ./data/app.db (chạy local)
+const DB_FILE  = process.env.DB_FILE || path.join(DATA_DIR, 'app.db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,7 +53,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Ensure dirs
 fs.mkdirSync(path.join(__dirname, 'uploads'), { recursive: true });
-fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
+// Nếu DB_FILE không nằm ở /tmp thì tạo thư mục chứa nó
+if (!DB_FILE.startsWith('/tmp')) {
+  fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
+}
 
 // Sessions (PHẢI trước các route)
 const SQLiteStore = SQLiteStoreImport(session);
@@ -88,7 +95,8 @@ const uploadMany = upload.array('images', 12); // upload nhiều ảnh
 // DB
 let db;
 (async () => {
-  db = await open({ filename: path.join(__dirname, 'data', 'app.db'), driver: sqlite3.Database });
+  db = await open({ filename: DB_FILE, driver: sqlite3.Database });
+console.log('✅ Using SQLite file at:', DB_FILE);
   await db.exec(`
     PRAGMA journal_mode = WAL;
 
