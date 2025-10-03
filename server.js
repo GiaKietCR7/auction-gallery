@@ -221,13 +221,15 @@ app.post('/item/:id/bid', async (req, res, next) => {
 });
 
 // Upload form
-app.post('/admin/upload', upload.array('images', 12), requireAdmin, async (req, res, next) => {
+app.get('/admin/upload', requireAdmin, (req, res) => {
+  res.render('upload', { adminKey: req.query.admin_key || '' });
+});
 
-// Handle upload — INSERT item trước, rồi upload ảnh + insert images, cuối cùng update image_path
-app.post('/admin/upload', requireAdmin, upload.array('images', 12), async (req, res, next) => {
+// Handle upload — Multer phải chạy TRƯỚC để parse multipart
+app.post('/admin/upload', upload.array('images', 12), requireAdmin, async (req, res, next) => {
   try {
     const { title, description, start_price, min_increment, end_time } = req.body;
-    if (!req.files?.length) throw new Error('Chưa chọn ảnh');
+    if (!req.files || !req.files.length) throw new Error('Chưa chọn ảnh');
 
     const id = nanoid(10);
 
@@ -247,7 +249,7 @@ app.post('/admin/upload', requireAdmin, upload.array('images', 12), async (req, 
       ]
     );
 
-    // 2) Upload ảnh và insert bảng images
+    // 2) Upload ảnh + insert bảng images
     let order = 0;
     let firstPath = null;
 
