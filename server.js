@@ -87,7 +87,12 @@ app.use(
     },
   })
 );
-
+app.use((req, res, next) => {
+  // luôn đặt biến cho EJS để không bị undefined
+  res.locals.currentUser = req.session?.user || null;
+  res.locals.getImageUrl = getImageUrl; // nếu head/partials cần dùng
+  next();
+});
 // ====== Multer (memory) ======
 const upload = multer({
   storage: multer.memoryStorage(),
