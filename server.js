@@ -155,6 +155,54 @@ app.get('/item/:id', async (req, res, next) => {
     res.render('item', { item: full, gallery, imagesFull: images.rows, bids: bids.rows });
   } catch (e) { next(e); }
 });
+// Xác nhận xoá (optional)
+app.get('/item/:id/delete', requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const r = await pool.query('select id, title from items where id=$1', [id]);
+    if (!r.rows.length) return res.status(404).render('404');
+    res.render('item-delete', { item: r.rows[0] });
+  } catch (e) { next(e); }
+});
+
+// Thực hiện xoá
+app.post('/item/:id/delete', requireAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Lấy danh sách path ảnh để xoá trên Storage
+    const { rows: imgs } = await pool.query(
+      'select image_path from images where item_id=$1',
+      [id]
+    );
+    // + cả ảnh đại diện trong items (có thể trùng với 1 ảnh trên)
+    const { rows: mainImg } = await pool.query(
+      'select image_path from items where id=$1',
+      [id]
+    );
+    const paths = [
+      ...new Set([
+        ...imgs.map(i => i.image_path).filter(Boolean),
+        mainImg[0]?.image_path
+      ])
+    ].filter(Boolean);
+
+    // Xoá file trong Supabase Storage (bỏ qua lỗi lẻ tẻ)
+    if (paths.length) {
+      const { error } = await supabase.storage.from('images').remove(paths);
+      if (error) console.warn('[storage.remove]', error.message);
+    }
+
+    // Xoá bản ghi DB (images/bids có FK ON DELETE CASCADE)
+    await pool.query('delete from items where id=$1', [id]);
+
+    // (Tùy chọn) xoá cả thư mục prefix `items/{id}/` nếu bạn upload theo prefix
+    // const { data: list } = await supabase.storage.from('images').list(`items/${id}`, { limit: 100 });
+    // if (list?.length) await supabase.storage.from('images').remove(list.map(x => `items/${id}/${x.name}`));
+
+    res.redirect('/');
+  } catch (e) { next(e); }
+});
 
 // ===== Bids =====
 app.post('/item/:id/bid', ensureVerifiedUser, async (req, res, next) => {

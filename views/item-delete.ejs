@@ -1,0 +1,10 @@
+<%- include('partials/head', { title: 'Delete item' }) %>
+<div class="container mx-auto max-w-3xl py-10">
+  <h1 class="text-2xl font-bold mb-4">Delete “<%= item.title %>”?</h1>
+  <p class="mb-6">Hành động này không thể hoàn tác.</p>
+  <form method="post" action="/item/<%= item.id %>/delete">
+    <button class="px-4 py-2 bg-red-600 text-white rounded">Confirm delete</button>
+    <a href="/item/<%= item.id %>" class="ml-4 underline">Cancel</a>
+  </form>
+</div>
+<%- include('partials/foot') %>
