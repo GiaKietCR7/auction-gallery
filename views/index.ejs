@@ -1,13 +1,12 @@
 <%- include('partials/head', { title: 'Gallery' }) %>
+<h1 class="font-serif text-3xl mb-6">Gallery</h1>
+<% if (!items || !items.length) { %>
+  <div class="text-ink/60">No items yet. <a class="link" href="/admin/upload">Upload a work</a>.</div>
+<% } else { %>
+  <!-- ... keep your grid as-is ... -->
+<% } %>
+<%- include('partials/foot') %>
 
-<div class="flex items-center justify-between mb-6">
-  <h1 class="font-serif text-3xl">Gallery</h1>
-  <form class="flex gap-2" method="GET" action="/">
-    <input type="text" name="q" value="<%= q || '' %>" placeholder="Tìm theo tiêu đề, mô tả…"
-           class="border rounded-full px-4 py-2 text-[14px] w-64" />
-    <button class="bg-ink text-white px-4 py-2 rounded-full text-[14px]">Tìm</button>
-  </form>
-</div>
 
 <% if (!items || !items.length) { %>
   <div class="text-ink/60">Chưa có tác phẩm nào. Vào <a class="link" href="/admin/upload?key=<%= encodeURIComponent(process.env.ADMIN_KEY || '') %>">đăng tác phẩm</a>.</div>

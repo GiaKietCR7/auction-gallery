@@ -1,11 +1,7 @@
-<%- include('partials/head', { title: 'Liên hệ' }) %>
-
-<div class="max-w-2xl">
-  <h1 class="font-serif text-4xl mb-6">Liên hệ</h1>
-
-  <% if (typeof success !== 'undefined' && success) { %>
-    <div class="border rounded-xl p-4 bg-mist text-ink/80 mb-6">✅ Gửi liên hệ thành công. Chúng tôi phản hồi trong 24h làm việc.</div>
-  <% } %>
+<%- include('partials/head', { title: 'Contact' }) %>
+<h1 class="font-serif text-3xl mb-6">Contact</h1>
+<p class="mb-4 text-ink/70">For inquiries please email <a class="link" href="mailto:<%= SUPPORT_EMAIL %>"><%= SUPPORT_EMAIL %></a>.</p>
+<%- include('partials/foot') %>
 
   <form action="/contact" method="POST" class="space-y-5">
     <input type="text" name="website" class="hidden" tabindex="-1" autocomplete="off">

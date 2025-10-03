@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title><%= title ? (title + " · FATKIT") : "FATKIT" %></title>
-  <meta name="description" content="FATKIT — Gallery & Auctions" />
+  <title><%= title ? (title + " · " + SITE_NAME) : SITE_NAME %></title>
+  <meta name="description" content="<%= SITE_NAME %> — Gallery & Auctions" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
@@ -13,8 +13,8 @@
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'], serif: ['Playfair Display','Georgia','serif'] },
-          colors: { ink:'#0a0a0a', mist:'#f7f7f7', soft:'#9aa0a6', brand:'#111111', accent:'#111111' },
+          fontFamily: { sans: ['Inter','system-ui','sans-serif'], serif: ['Playfair Display','Georgia','serif'] },
+          colors: { ink:'#0a0a0a', mist:'#f7f7f7' },
           boxShadow: { card:'0 6px 30px rgba(0,0,0,.06)', hover:'0 10px 40px rgba(0,0,0,.10)' }
         }
       }
@@ -22,48 +22,48 @@
   </script>
   <style>
     html,body{background:#fff;color:#0a0a0a}
-    .link { position: relative; }
-    .link::after { content:''; position:absolute; left:0; bottom:-2px; width:0; height:1px; background:#111; transition:width .25s; }
-    .link:hover::after { width:100%; }
+    .link {position:relative}
+    .link::after{content:'';position:absolute;left:0;bottom:-2px;width:0;height:1px;background:#111;transition:width .25s}
+    .link:hover::after{width:100%}
   </style>
 </head>
 <body class="font-sans antialiased">
   <div class="text-[12px] tracking-wide bg-mist text-ink/70">
     <div class="max-w-7xl mx-auto px-6 py-2 flex items-center justify-between">
-      <span>🔒 Bảo mật SSL · ✅ Seller Verified · 🧾 Chính sách minh bạch</span>
-      <a href="/contact" class="link">Liên hệ</a>
+      <span>🔒 SSL • ✅ Verified Seller • 🧾 Transparent Policy</span>
+      <a href="/contact" class="link">Contact</a>
     </div>
   </div>
 
   <header class="sticky top-0 z-20 bg-white/80 backdrop-blur border-b">
     <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-      <a href="/" class="text-2xl font-serif tracking-tight">FATKIT</a>
+      <a href="/" class="text-2xl font-serif tracking-tight"><%= SITE_NAME %></a>
 
       <nav class="hidden md:flex items-center gap-8 text-[14px]">
         <a class="link" href="/">Gallery</a>
-        <a class="link" href="/about">Giới thiệu</a>
-        <a class="link" href="/contact">Liên hệ</a>
+        <a class="link" href="/about">About</a>
+        <a class="link" href="/contact">Contact</a>
 
         <% if (currentUser) { %>
-          <a class="link" href="/admin/upload">Đăng tác phẩm</a>
+          <a class="link" href="/admin/upload">Upload</a>
           <span class="text-ink/70">
-            Xin chào, <span class="font-medium"><%= currentUser.display_name %></span>
-            <% if (currentUser.verified) { %> <span title="Đã xác minh">✔️</span> <% } %>
+            Hello, <span class="font-medium"><%= currentUser.display_name %></span>
+            <% if (currentUser.verified) { %> <span title="Verified">✔️</span> <% } %>
           </span>
           <form action="/logout" method="POST">
-            <button class="border px-3 py-1.5 rounded-full text-[13px]">Đăng xuất</button>
+            <button class="border px-3 py-1.5 rounded-full text-[13px]">Sign out</button>
           </form>
         <% } else { %>
-          <a class="link" href="/register">Đăng ký</a>
-          <a href="/login" class="border px-3 py-1.5 rounded-full text-[13px]">Đăng nhập</a>
+          <a class="link" href="/register">Register</a>
+          <a href="/login" class="border px-3 py-1.5 rounded-full text-[13px]">Sign in</a>
         <% } %>
       </nav>
 
       <div class="md:hidden flex items-center gap-2">
         <% if (currentUser) { %>
-          <a href="/admin/upload" class="border px-3 py-1.5 rounded-full text-[13px]">Đăng</a>
+          <a href="/admin/upload" class="border px-3 py-1.5 rounded-full text-[13px]">Upload</a>
         <% } else { %>
-          <a href="/login" class="border px-3 py-1.5 rounded-full text-[13px]">Đăng nhập</a>
+          <a href="/login" class="border px-3 py-1.5 rounded-full text-[13px]">Sign in</a>
         <% } %>
       </div>
     </div>

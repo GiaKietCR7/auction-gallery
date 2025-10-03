@@ -42,6 +42,17 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.disable('x-powered-by');
 
+// ---- Site globals ----
+const SITE_NAME = process.env.SITE_NAME || 'Ivan Laliash Vili';
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'ipr@ivanlaliashvili.art';
+
+// Make available in every EJS
+app.use((req, res, next) => {
+  res.locals.SITE_NAME = SITE_NAME;
+  res.locals.SUPPORT_EMAIL = SUPPORT_EMAIL;
+  next();
+});
+
 // Security (nới CSP cho EJS/inline)
 app.use(helmet({
   contentSecurityPolicy: false,

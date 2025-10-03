@@ -1,23 +1,14 @@
-<%- include('partials/head', { title: 'Đăng nhập' }) %>
-
-<h1 class="font-serif text-3xl mb-6">Đăng nhập</h1>
-
+<%- include('partials/head', { title: 'Sign in' }) %>
+<h1 class="font-serif text-3xl mb-6">Sign in</h1>
 <form action="/login" method="POST" class="max-w-sm space-y-3">
   <label class="block">
     <span class="text-sm">Email</span>
-    <input type="email" name="email" required
-           class="border rounded-full px-4 py-2 w-full text-[14px]" />
+    <input type="email" name="email" required class="border rounded-full px-4 py-2 w-full text-[14px]" />
   </label>
-
   <label class="block">
-    <span class="text-sm">Mật khẩu</span>
-    <input type="password" name="password" required
-           class="border rounded-full px-4 py-2 w-full text-[14px]" />
+    <span class="text-sm">Password</span>
+    <input type="password" name="password" required class="border rounded-full px-4 py-2 w-full text-[14px]" />
   </label>
-
-  <button class="bg-ink text-white px-5 py-2 rounded-full text-[14px]">
-    Đăng nhập
-  </button>
+  <button class="bg-ink text-white px-5 py-2 rounded-full text-[14px]">Sign in</button>
 </form>
-
 <%- include('partials/foot') %>

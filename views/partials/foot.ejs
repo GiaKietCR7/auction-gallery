@@ -1,71 +1,50 @@
-</main>
+  </main>
 
-<footer class="border-t">
-  <!-- HÀNG TRÊN: 4 cột -->
-  <div class="max-w-7xl mx-auto px-6 py-12 grid gap-10 md:grid-cols-4">
-    <!-- Cột 1 -->
-    <div>
-      <div class="text-2xl font-serif mb-2">FATKIT</div>
-      <p class="text-[14px] text-ink/60">Nền tảng trưng bày & đấu giá tác phẩm nghệ thuật. Tối giản – tinh tế – minh bạch.</p>
-      <div class="flex gap-2 mt-4 text-[12px]">
-        <span class="border px-3 py-1 rounded-full">HTTPS</span>
-        <span class="border px-3 py-1 rounded-full">Verified Seller</span>
-        <span class="border px-3 py-1 rounded-full">Secure Checkout</span>
+  <footer class="border-t">
+    <div class="max-w-7xl mx-auto px-6 py-12 grid gap-10 md:grid-cols-4">
+      <div>
+        <div class="text-2xl font-serif mb-2"><%= SITE_NAME %></div>
+        <p class="text-[14px] text-ink/60">A minimal, elegant and transparent gallery & auction platform.</p>
+        <div class="flex gap-2 mt-4 text-[12px]">
+          <span class="border px-3 py-1 rounded-full">HTTPS</span>
+          <span class="border px-3 py-1 rounded-full">Verified Seller</span>
+          <span class="border px-3 py-1 rounded-full">Secure Checkout</span>
+        </div>
       </div>
-    </div>
-
-    <!-- Cột 2 -->
-    <div>
-      <div class="font-medium mb-3">Khám phá</div>
-      <ul class="space-y-2 text-[14px] text-ink/80">
-        <li><a class="link" href="/">Gallery</a></li>
-        <li><a class="link" href="/admin/upload">Đăng tác phẩm</a></li>
-        <li><a class="link" href="/about">Giới thiệu</a></li>
-      </ul>
-    </div>
-
-    <!-- Cột 3 -->
-    <div>
-      <div class="font-medium mb-3">Pháp lý</div>
-      <ul class="space-y-2 text-[14px] text-ink/80">
-        <li><a class="link" href="/terms">Điều khoản</a></li>
-        <li><a class="link" href="/privacy">Bảo mật</a></li>
-      </ul>
-    </div>
-
-    <!-- Cột 4: Liên hệ (text trái | DMCA phải) -->
-    <div>
-      <div class="font-medium mb-3">Liên hệ</div>
-      <div class="grid grid-cols-2 gap-4 items-start">
-        <!-- Trái: thông tin -->
-        <ul class="space-y-1 text-[14px] text-ink/80">
-          <li>✉️ support@fatkit.vn</li>
-          <li>📍 Q.1, TP.HCM</li>
-          <li>09xx xxx xxx</li>
+      <div>
+        <div class="font-medium mb-3">Explore</div>
+        <ul class="space-y-2 text-[14px] text-ink/80">
+          <li><a class="link" href="/">Gallery</a></li>
+          <li><a class="link" href="/admin/upload">Upload</a></li>
+          <li><a class="link" href="/about">About</a></li>
         </ul>
-        <!-- Phải: DMCA -->
-        <div class="justify-self-end shrink-0">
+      </div>
+      <div>
+        <div class="font-medium mb-3">Legal</div>
+        <ul class="space-y-2 text-[14px] text-ink/80">
+          <li><a class="link" href="/terms">Terms</a></li>
+          <li><a class="link" href="/privacy">Privacy</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="font-medium mb-3">Contact</div>
+        <ul class="space-y-1 text-[14px] text-ink/80">
+          <li>✉️ <a class="link" href="mailto:<%= SUPPORT_EMAIL %>"><%= SUPPORT_EMAIL %></a></li>
+          <li>📍 Tbilisi, GE</li>
+        </ul>
+        <div class="mt-3">
           <a href="https://www.dmca.com/" rel="nofollow noopener" target="_blank" title="DMCA Protected">
-            <img src="/public/img/dmca.png" alt="Protected by DMCA"
-                 class="block max-w-none" style="height:150px;width:auto;">
+            <img src="/public/img/dmca.png" alt="Protected by DMCA" style="height:56px;width:auto;">
           </a>
         </div>
       </div>
     </div>
-  </div>
-  <!-- /end grid 4 cột -->
-
-  <!-- HÀNG DƯỚI: 2 cột đối xứng full width -->
-  <div class="border-t">
-    <div class="max-w-7xl mx-auto px-6 py-5 text-[12px] text-ink/50 grid grid-cols-2 items-center">
-      <div class="justify-self-start">
-        © <%= new Date().getFullYear() %> FATKIT. All rights reserved.
-      </div>
-      <div class="flex items-center justify-self-end gap-4">
-        <span>VAT/GPKD · Social links</span>
+    <div class="border-t">
+      <div class="max-w-7xl mx-auto px-6 py-5 text-[12px] text-ink/50 flex items-center justify-between">
+        <span>© <%= new Date().getFullYear() %> <%= SITE_NAME %>. All rights reserved.</span>
+        <span>VAT / Company · Social links</span>
       </div>
     </div>
-  </div>
-</footer>
+  </footer>
 </body>
 </html>
