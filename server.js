@@ -124,9 +124,11 @@ function getImageUrl(p) {
 }
 
 function requireAdmin(req, res, next) {
-  // cho phép: user role=admin hoặc header/query có admin key
   if (req.session?.user?.role === 'admin') return next();
-  const key = req.get('x-admin-key') || req.query.admin_key;
+  const key =
+    req.get('x-admin-key') ||
+    req.query.admin_key ||
+    req.body?.admin_key;           // ← thêm dòng này
   if (key && key === ADMIN_KEY) return next();
   return res.status(403).send('Forbidden');
 }
@@ -219,7 +221,10 @@ app.post('/item/:id/bid', async (req, res, next) => {
 });
 
 // Upload form (UI đã có sẵn ejs)
-app.get('/admin/upload', requireAdmin, (req, res) => res.render('upload'));
+app.get('/admin/upload', requireAdmin, (req, res) => {
+  res.render('upload', { adminKey: req.query.admin_key || '' });
+});
+
 
 // Handle upload — INSERT item trước, rồi upload ảnh + insert images, cuối cùng update image_path
 app.post('/admin/upload', requireAdmin, upload.array('images', 12), async (req, res, next) => {

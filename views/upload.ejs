@@ -27,7 +27,9 @@
       <input name="end_time" type="datetime-local" class="border rounded px-3 py-2 w-full" />
     </div>
   </div>
-
+<% if (adminKey) { %>
+  <input type="hidden" name="admin_key" value="<%= adminKey %>">
+<% } %>
   <div>
     <label class="block text-sm">Ảnh tác phẩm (chọn nhiều)</label>
     <input type="file" name="images" accept="image/*" multiple class="border rounded px-3 py-2 w-full" />
