@@ -1,0 +1,11 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Lỗi 500</title>
+<link rel="stylesheet" href="/styles.css"></head>
+<body style="font-family:system-ui,Arial;padding:32px;max-width:720px;margin:auto">
+  <h1>500 — Lỗi máy chủ</h1>
+  <p>Đã có lỗi xảy ra. Vui lòng thử lại sau.</p>
+  <% if (typeof error !== 'undefined') { %>
+    <pre style="white-space:pre-wrap;background:#f6f6f6;padding:12px;border-radius:8px"><%= String(error) %></pre>
+  <% } %>
+  <p><a href="/">← Về trang chủ</a></p>
+</body></html>
