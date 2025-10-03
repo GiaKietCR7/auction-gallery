@@ -1,0 +1,55 @@
+<%- include('partials/head', { title: 'Quản lý người dùng' }) %>
+<div class="container mx-auto max-w-6xl py-10">
+  <h1 class="text-3xl font-bold mb-6">Quản lý người dùng</h1>
+
+  <div class="mb-6">
+    <a class="underline text-blue-600" href="/admin">← Về Admin</a>
+  </div>
+
+  <div class="overflow-x-auto border rounded-xl">
+    <table class="min-w-full text-sm">
+      <thead class="bg-gray-100">
+        <tr>
+          <th class="text-left p-3">ID</th>
+          <th class="text-left p-3">Email</th>
+          <th class="text-left p-3">Tên hiển thị</th>
+          <th class="text-left p-3">Vai trò</th>
+          <th class="text-left p-3">Verified</th>
+          <th class="text-left p-3">Tạo lúc</th>
+          <th class="text-left p-3">Hành động</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% if (!users || users.length === 0) { %>
+          <tr><td class="p-3" colspan="7">Chưa có người dùng.</td></tr>
+        <% } %>
+        <% users.forEach(u => { %>
+          <tr class="border-t">
+            <td class="p-3"><%= u.id %></td>
+            <td class="p-3"><%= u.email %></td>
+            <td class="p-3"><%= u.display_name %></td>
+            <td class="p-3">
+              <form method="post" action="/admin/users/<%= u.id %>/update" class="flex items-center gap-3">
+                <select name="role" class="border rounded px-2 py-1">
+                  <option value="user"  <%= u.role === 'user'  ? 'selected' : '' %>>user</option>
+                  <option value="admin" <%= u.role === 'admin' ? 'selected' : '' %>>admin</option>
+                </select>
+            </td>
+            <td class="p-3">
+                <select name="verified" class="border rounded px-2 py-1">
+                  <option value="false" <%= !u.verified ? 'selected' : '' %>>false</option>
+                  <option value="true"  <%=  u.verified ? 'selected' : '' %>>true</option>
+                </select>
+            </td>
+            <td class="p-3"><%= new Date(u.created_at).toLocaleString() %></td>
+            <td class="p-3">
+                <button class="px-3 py-1 border rounded hover:bg-gray-50" type="submit">Lưu</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<%- include('partials/foot') %>

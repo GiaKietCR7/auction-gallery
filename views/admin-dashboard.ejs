@@ -1,0 +1,21 @@
+<%- include('partials/head', { title: 'Admin' }) %>
+<div class="container mx-auto max-w-5xl py-10">
+  <h1 class="text-3xl font-bold mb-6">Bảng điều khiển Admin</h1>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <a href="/admin/users" class="block p-5 border rounded-xl hover:bg-gray-50">
+      <div class="text-xl font-semibold mb-2">Quản lý người dùng</div>
+      <div class="text-gray-600">Xem danh sách, đổi quyền (user/admin), bật xác minh</div>
+    </a>
+
+    <a href="/items/new" class="block p-5 border rounded-xl hover:bg-gray-50">
+      <div class="text-xl font-semibold mb-2">Thêm sản phẩm</div>
+      <div class="text-gray-600">Tạo item mới để đấu giá</div>
+    </a>
+  </div>
+
+  <div class="mt-8">
+    <a class="underline text-blue-600" href="/">← Về trang chủ</a>
+  </div>
+</div>
+<%- include('partials/foot') %>
