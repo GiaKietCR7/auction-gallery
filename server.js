@@ -15,6 +15,7 @@ import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import pkg from 'pg';
 import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 
 const { Pool } = pkg;
 const __filename = fileURLToPath(import.meta.url);
