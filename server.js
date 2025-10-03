@@ -1,4 +1,6 @@
 // server.js – bản Supabase
+import dns from 'dns';
+if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first');
 import 'dotenv/config';
 import path from 'path';
 import express from 'express';
