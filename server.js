@@ -23,6 +23,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
 // DB path – free tier friendly
+
 const isRender = !!process.env.RENDER;
 const DEFAULT_DB_FILE = isRender ? '/tmp/app.db' : path.join(__dirname, 'data', 'app.db');
 const DB_FILE  = process.env.DB_FILE || DEFAULT_DB_FILE;
@@ -229,23 +230,63 @@ async function enrichItem(row) {
 // ---------- Routes ----------
 
 // Home (gallery + search)
+// Home (gallery + search + pagination 9/page)
 app.get('/', async (req, res, next) => {
   try {
+    const PAGE_SIZE = 8;
+    const page = Math.max(1, parseInt(req.query.page || '1', 10));
     const q = (req.query.q || '').trim();
+
     const where = [];
     const params = [];
     if (q) {
       where.push('(i.title LIKE ? OR i.description LIKE ?)');
       params.push(`%${q}%`, `%${q}%`);
     }
-    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    const items = await db.all(
-      `SELECT i.* FROM items i ${whereSql} ORDER BY i.created_at DESC LIMIT 100`, params
+    const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    // tổng số bài
+    const totalRow = await db.get(
+      `SELECT COUNT(*) AS cnt
+       FROM items i
+       ${whereSQL}`,
+      params
     );
+    const total = totalRow?.cnt || 0;
+
+    // tính trang
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const pageSafe = Math.min(page, totalPages);
+    const offset = (pageSafe - 1) * PAGE_SIZE;
+
+    // lấy danh sách cho trang hiện tại
+    const items = await db.all(
+      `SELECT i.*
+       FROM items i
+       ${whereSQL}
+       ORDER BY i.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [...params, PAGE_SIZE, offset]
+    );
+
+    // enrich thêm topBid/bidCount nếu bạn đang dùng
     const full = await Promise.all(items.map(enrichItem));
-    res.render('index', { items: full, q });
+
+    const pager = {
+      page: pageSafe,
+      total,
+      totalPages,
+      hasPrev: pageSafe > 1,
+      hasNext: pageSafe < totalPages,
+      prev: pageSafe - 1,
+      next: pageSafe + 1,
+      q
+    };
+
+    res.render('index', { items: full, pager, q });
   } catch (e) { next(e); }
 });
+
 
 // Item detail
 app.get('/item/:id', async (req, res, next) => {
