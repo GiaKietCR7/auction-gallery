@@ -14,9 +14,16 @@ import { nanoid } from 'nanoid';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import pkg from 'pg';
-import bcrypt from 'bcryptjs';
 import bcrypt from 'bcrypt';
 
+let bcrypt;
+try {
+  ({ default: bcrypt } = await import('bcrypt'));      // native
+  console.log('[bcrypt] using native bcrypt');
+} catch (e) {
+  ({ default: bcrypt } = await import('bcryptjs'));    // fallback
+  console.log('[bcrypt] fallback to bcryptjs');
+}
 const { Pool } = pkg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
