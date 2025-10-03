@@ -1,40 +1,29 @@
-// server.js
+// server.js – bản Supabase
 import 'dotenv/config';
 import path from 'path';
-import fs from 'fs';
 import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import session from 'express-session';
-import connectSqlite3 from 'connect-sqlite3';
 import multer from 'multer';
-import mime from 'mime';
 import { nanoid } from 'nanoid';
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
 import { fileURLToPath } from 'url';
+import { createClient } from '@supabase/supabase-js';
+import pkg from 'pg';
 
-let bcrypt;
-try { bcrypt = (await import('bcrypt')).default; }
-catch { bcrypt = (await import('bcryptjs')).default; }
-
-// ---------- Paths ----------
+const { Pool } = pkg;
 const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
+const __dirname = path.dirname(__filename);
 
-// DB path – free tier friendly
-
-const isRender = !!process.env.RENDER;
-const DEFAULT_DB_FILE = isRender ? '/tmp/app.db' : path.join(__dirname, 'data', 'app.db');
-const DB_FILE  = process.env.DB_FILE || DEFAULT_DB_FILE;
-const SESSION_DB = DB_FILE.startsWith('/tmp')
-  ? '/tmp/sessions.db'
-  : path.join(path.dirname(DB_FILE), 'sessions.db');
-
-// Folders
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-if (!DB_FILE.startsWith('/tmp')) fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
+// ---------- Supabase ----------
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL, // Supabase Postgres connection string
+  ssl: { rejectUnauthorized: false }
+});
 
 // ---------- App ----------
 const app = express();
@@ -43,171 +32,42 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.disable('x-powered-by');
 
-// ---- Site globals ----
-const SITE_NAME = process.env.SITE_NAME || 'Ivan Laliash Vili';
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'ipr@ivanlaliashvili.art';
+const SITE_NAME = process.env.SITE_NAME || 'Auction Gallery PRO';
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@example.com';
 
-// Make available in every EJS
 app.use((req, res, next) => {
   res.locals.SITE_NAME = SITE_NAME;
   res.locals.SUPPORT_EMAIL = SUPPORT_EMAIL;
   next();
 });
 
-// Security (nới CSP cho EJS/inline)
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false,
-}));
-
-// Static
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 app.use('/public', express.static(path.join(__dirname, 'public'), { maxAge: '7d', etag: true }));
-app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '7d', etag: true }));
-
-// Parsers
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(express.json());
 
-// Rate limit
-app.use(rateLimit({
-  windowMs: 60 * 1000,
-  max: 300,
-}));
+app.use(rateLimit({ windowMs: 60 * 1000, max: 300 }));
 
-// Sessions (SQLite store)
-const SQLiteStore = connectSqlite3(session);
+// Sessions (memory store cho demo, có thể đổi sang Redis nếu cần)
 app.use(session({
-  store: new SQLiteStore({ db: path.basename(SESSION_DB), dir: path.dirname(SESSION_DB) }),
   secret: process.env.SESSION_SECRET || 'dev-secret-change-me',
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
-    secure: !!process.env.RENDER, // secure cookie khi chạy trên Render (https)
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 ngày
+    secure: !!process.env.RENDER,
+    maxAge: 1000 * 60 * 60 * 24 * 7,
   }
 }));
 
-// Helper: expose current user to views
 app.use((req, res, next) => {
   res.locals.currentUser = req.session.user || null;
   next();
 });
 
-// ---------- DB init ----------
-let db;
-async function initDb() {
-  const openWith = async (file) => {
-    const conn = await open({ filename: file, driver: sqlite3.Database });
-    await conn.exec(`PRAGMA journal_mode = WAL;`);
-    await conn.exec(`
-      CREATE TABLE IF NOT EXISTS items (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT,
-        image_path TEXT NOT NULL,
-        start_price REAL NOT NULL CHECK(start_price >= 0),
-        min_increment REAL NOT NULL DEFAULT 1,
-        end_time DATETIME,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        status TEXT NOT NULL DEFAULT 'active',
-        owner_id INTEGER
-      );
-
-      CREATE TABLE IF NOT EXISTS bids (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        item_id TEXT NOT NULL,
-        bidder TEXT,
-        amount REAL NOT NULL CHECK(amount > 0),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (item_id) REFERENCES items(id)
-      );
-      CREATE INDEX IF NOT EXISTS idx_bids_item ON bids(item_id);
-
-      CREATE TABLE IF NOT EXISTS contacts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        subject TEXT,
-        message TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        display_name TEXT NOT NULL,
-        verified INTEGER NOT NULL DEFAULT 0,
-        role TEXT NOT NULL DEFAULT 'user',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      );
-
-      /* nhiều ảnh / item */
-      CREATE TABLE IF NOT EXISTS images (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        item_id TEXT NOT NULL,
-        image_path TEXT NOT NULL,
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (item_id) REFERENCES items(id)
-      );
-      CREATE INDEX IF NOT EXISTS idx_images_item ON images(item_id, sort_order);
-    `);
-    return conn;
-  };
-
-  try {
-    db = await openWith(DB_FILE);
-    console.log('✅ Using SQLite at:', DB_FILE);
-  } catch (err) {
-    console.error('DB open failed at', DB_FILE, err.code, err.message);
-    const fallback = '/tmp/app.db';
-    if (DB_FILE !== fallback) {
-      db = await openWith(fallback);
-      console.log('↩︎ Fallback SQLite at:', fallback);
-    } else {
-      throw err;
-    }
-  }
-
-  // seed admin
-  const adminEmail = 'admin@site.local';
-  const admin = await db.get('SELECT id FROM users WHERE email=?', adminEmail);
-  if (!admin) {
-    const hash = await bcrypt.hash('admin123', 10);
-    await db.run(
-      'INSERT INTO users(email, password_hash, display_name, verified, role) VALUES(?,?,?,?,?)',
-      adminEmail, hash, 'Administrator', 1, 'admin'
-    );
-    console.log('👑 Seeded admin: admin@site.local / admin123');
-  }
-}
-
-// ---------- Multer (uploads) ----------
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) { cb(null, UPLOAD_DIR); },
-  filename: function (req, file, cb) {
-    const ext = mime.getExtension(file.mimetype) || 'bin';
-    cb(null, `${Date.now()}_${nanoid(6)}.${ext}`);
-  }
-});
-function imageFilter(req, file, cb) {
-  if (/^image\//.test(file.mimetype)) cb(null, true);
-  else cb(new Error('File phải là ảnh'), false);
-}
-const upload = multer({ storage, fileFilter: imageFilter, limits: { fileSize: 5 * 1024 * 1024 } });
-
-// ---------- Auth helpers ----------
-const ADMIN_KEY = process.env.ADMIN_KEY || 'admin123';
-
-function requireAdmin(req, res, next) {
-  const byKey = req.query.key && req.query.key === ADMIN_KEY;
-  const bySession = req.session.user && req.session.user.role === 'admin';
-  if (byKey || bySession) return next();
-  return res.status(403).send('Forbidden');
-}
+// ---------- Multer (upload vào memory) ----------
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 // ---------- Utils ----------
 function computeEnded(row) {
@@ -216,100 +76,66 @@ function computeEnded(row) {
   return endedByStatus || endedByTime;
 }
 async function enrichItem(row) {
-  const agg = await db.get(
+  const agg = await pool.query(
     `SELECT COUNT(*) as bidCount, MAX(amount) as topBid
-     FROM bids WHERE item_id = ?`, row.id);
+     FROM bids WHERE item_id = $1`, [row.id]);
   return {
     ...row,
-    bidCount: agg?.bidCount || 0,
-    topBid: agg?.topBid || null,
+    bidcount: parseInt(agg.rows[0]?.bidcount || 0),
+    topbid: agg.rows[0]?.topbid || null,
     ended: computeEnded(row),
   };
+}
+function getImageUrl(path) {
+  return supabase.storage.from('images').getPublicUrl(path).data.publicUrl;
 }
 
 // ---------- Routes ----------
 
-// Home (gallery + search)
-// Home (gallery + search + pagination 9/page)
+// Home (gallery + pagination)
 app.get('/', async (req, res, next) => {
   try {
     const PAGE_SIZE = 8;
     const page = Math.max(1, parseInt(req.query.page || '1', 10));
     const q = (req.query.q || '').trim();
 
-    const where = [];
-    const params = [];
+    let whereSQL = '';
+    let params = [];
     if (q) {
-      where.push('(i.title LIKE ? OR i.description LIKE ?)');
-      params.push(`%${q}%`, `%${q}%`);
+      whereSQL = `WHERE title ILIKE $1 OR description ILIKE $1`;
+      params.push(`%${q}%`);
     }
-    const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-    // tổng số bài
-    const totalRow = await db.get(
-      `SELECT COUNT(*) AS cnt
-       FROM items i
-       ${whereSQL}`,
-      params
-    );
-    const total = totalRow?.cnt || 0;
-
-    // tính trang
+    const totalRow = await pool.query(`SELECT COUNT(*) as cnt FROM items ${whereSQL}`, params);
+    const total = parseInt(totalRow.rows[0]?.cnt || 0);
     const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
     const pageSafe = Math.min(page, totalPages);
     const offset = (pageSafe - 1) * PAGE_SIZE;
 
-    // lấy danh sách cho trang hiện tại
-    const items = await db.all(
-      `SELECT i.*
-       FROM items i
-       ${whereSQL}
-       ORDER BY i.created_at DESC
-       LIMIT ? OFFSET ?`,
+    const items = await pool.query(
+      `SELECT * FROM items ${whereSQL} ORDER BY created_at DESC LIMIT $${params.length+1} OFFSET $${params.length+2}`,
       [...params, PAGE_SIZE, offset]
     );
 
-    // enrich thêm topBid/bidCount nếu bạn đang dùng
-    const full = await Promise.all(items.map(enrichItem));
-
-    const pager = {
-      page: pageSafe,
-      total,
-      totalPages,
-      hasPrev: pageSafe > 1,
-      hasNext: pageSafe < totalPages,
-      prev: pageSafe - 1,
-      next: pageSafe + 1,
-      q
-    };
-
-    res.render('index', { items: full, pager, q });
+    const full = await Promise.all(items.rows.map(enrichItem));
+    const pager = { page: pageSafe, total, totalPages, hasPrev: pageSafe>1, hasNext: pageSafe<totalPages, prev: pageSafe-1, next: pageSafe+1, q };
+    res.render('index', { items: full, pager, q, getImageUrl });
   } catch (e) { next(e); }
 });
-
 
 // Item detail
 app.get('/item/:id', async (req, res, next) => {
   try {
     const id = req.params.id;
-    const item = await db.get('SELECT * FROM items WHERE id=?', id);
-    if (!item) return res.status(404).render('404');
-    const images = await db.all(
-      'SELECT * FROM images WHERE item_id=? ORDER BY sort_order, id', id
-    );
-    const gallery = images.length ? images.map(i => i.image_path) : [item.image_path];
-    const owner = item.owner_id
-      ? await db.get('SELECT id, display_name, verified, role FROM users WHERE id=?', item.owner_id)
-      : null;
-    const bids = await db.all('SELECT bidder, amount FROM bids WHERE item_id=? ORDER BY amount DESC', id);
-    const full = await enrichItem(item);
-    res.render('item', {
-      item: full,
-      gallery,
-      imagesFull: images,
-      owner,
-      bids
-    });
+    const item = await pool.query('SELECT * FROM items WHERE id=$1', [id]);
+    if (!item.rows.length) return res.status(404).render('404');
+
+    const images = await pool.query('SELECT * FROM images WHERE item_id=$1 ORDER BY sort_order,id', [id]);
+    const gallery = images.rows.length ? images.rows.map(i=>i.image_path) : [item.rows[0].image_path];
+    const bids = await pool.query('SELECT bidder, amount FROM bids WHERE item_id=$1 ORDER BY amount DESC', [id]);
+
+    const full = await enrichItem(item.rows[0]);
+    res.render('item', { item: full, gallery, imagesFull: images.rows, bids: bids.rows, getImageUrl });
   } catch (e) { next(e); }
 });
 
@@ -317,186 +143,67 @@ app.get('/item/:id', async (req, res, next) => {
 app.post('/item/:id/bid', async (req, res, next) => {
   try {
     const id = req.params.id;
-    const bidder = (req.body.bidder || '').trim().slice(0, 60);
+    const bidder = (req.body.bidder || '').trim().slice(0,60);
     const amount = parseFloat(req.body.amount);
-    const item = await db.get('SELECT * FROM items WHERE id=?', id);
+
+    const itemRes = await pool.query('SELECT * FROM items WHERE id=$1', [id]);
+    const item = itemRes.rows[0];
     if (!item) return res.status(404).send('Item not found');
-    if (computeEnded(item) || item.status !== 'active') {
-      return res.status(400).send('Phiên đấu giá đã kết thúc.');
-    }
-    const agg = await db.get(
-      'SELECT COALESCE(MAX(amount), 0) as topBid FROM bids WHERE item_id=?', id
-    );
-    const minBase = Math.max(agg?.topBid || 0, item.start_price);
+    if (computeEnded(item) || item.status !== 'active') return res.status(400).send('Auction ended');
+
+    const agg = await pool.query('SELECT COALESCE(MAX(amount),0) as top FROM bids WHERE item_id=$1', [id]);
+    const minBase = Math.max(agg.rows[0]?.top || 0, item.start_price);
     const minReq = minBase + (item.min_increment || 1);
-    if (!Number.isFinite(amount) || amount < minReq) {
-      throw new Error(`Bid must be at least ${minReq.toFixed(2)}`);
-    }
-    await db.run(
-      'INSERT INTO bids(item_id, bidder, amount) VALUES(?,?,?)',
-      id, bidder || 'Ẩn danh', amount
-    );
+    if (!Number.isFinite(amount) || amount < minReq) throw new Error(`Bid must be >= ${minReq}`);
+
+    await pool.query('INSERT INTO bids(item_id,bidder,amount) VALUES($1,$2,$3)', [id, bidder||'Ẩn danh', amount]);
     res.redirect(`/item/${id}`);
   } catch (e) { next(e); }
 });
 
-// Close auction (admin)
-app.post('/item/:id/close', requireAdmin, async (req, res, next) => {
-  try {
-    await db.run('UPDATE items SET status=? WHERE id=?', 'ended', req.params.id);
-    res.redirect(`/item/${req.params.id}`);
-  } catch (e) { next(e); }
-});
+// Upload form
+app.get('/admin/upload', (req,res)=> res.render('upload'));
 
-// Delete whole item (admin or owner)
-app.post('/item/:id/delete', requireAdmin, async (req, res, next) => {
-  try {
-    const id = req.params.id;
-    const imgs = await db.all('SELECT image_path FROM images WHERE item_id=?', id);
-    const one = await db.get('SELECT image_path FROM items WHERE id=?', id);
-    await db.run('DELETE FROM bids WHERE item_id=?', id);
-    await db.run('DELETE FROM images WHERE item_id=?', id);
-    await db.run('DELETE FROM items WHERE id=?', id);
-    // remove files (best-effort)
-    const all = [...imgs.map(i => i.image_path), one?.image_path].filter(Boolean);
-    all.forEach(p => {
-      const abs = path.join(__dirname, p.replace(/^\//, ''));
-      if (abs.startsWith(UPLOAD_DIR)) fs.rm(abs, { force: true }, () => {});
-    });
-    res.redirect('/');
-  } catch (e) { next(e); }
-});
-
-// Remove single image (admin or owner)
-app.post('/item/:id/image/:imgId/delete', requireAdmin, async (req, res, next) => {
-  try {
-    const { id, imgId } = req.params;
-    const row = await db.get('SELECT image_path FROM images WHERE id=? AND item_id=?', imgId, id);
-    if (!row) return res.redirect(`/item/${id}`);
-    await db.run('DELETE FROM images WHERE id=?', imgId);
-    // if main image equals this image -> set main to another
-    const it = await db.get('SELECT image_path FROM items WHERE id=?', id);
-    if (it?.image_path === row.image_path) {
-      const nextImg = await db.get('SELECT image_path FROM images WHERE item_id=? ORDER BY sort_order, id LIMIT 1', id);
-      if (nextImg) await db.run('UPDATE items SET image_path=? WHERE id=?', nextImg.image_path, id);
-    }
-    const abs = path.join(__dirname, row.image_path.replace(/^\//, ''));
-    if (abs.startsWith(UPLOAD_DIR)) fs.rm(abs, { force: true }, () => {});
-    res.redirect(`/item/${id}`);
-  } catch (e) { next(e); }
-});
-
-// Upload form (admin)
-app.get('/admin/upload', requireAdmin, (req, res) => {
-  res.render('upload');
-});
-
-// Handle upload (admin)
-app.post('/admin/upload', requireAdmin, upload.array('images', 12), async (req, res, next) => {
+// Handle upload
+app.post('/admin/upload', upload.array('images', 12), async (req,res,next)=>{
   try {
     const { title, description, start_price, min_increment, end_time } = req.body;
-    if (!req.files?.length) throw new Error('Chưa chọn ảnh');
+    if (!req.files?.length) throw new Error('No images uploaded');
+
     const id = nanoid(10);
-    const firstPath = '/uploads/' + path.basename(req.files[0].path);
+    let order=0, firstPath=null;
 
-    await db.run(
-      `INSERT INTO items(id, title, description, image_path, start_price, min_increment, end_time, status, owner_id)
-       VALUES (?,?,?,?,?,?,?,?,?)`,
-      id,
-      (title || '').trim().slice(0, 200),
-      (description || '').trim(),
-      firstPath,
-      parseFloat(start_price || '0') || 0,
-      parseFloat(min_increment || '1') || 1,
-      end_time ? new Date(end_time).toISOString() : null,
-      'active',
-      (req.session.user && req.session.user.id) || null
-    );
-
-    // save gallery
-    let order = 0;
     for (const f of req.files) {
-      const p = '/uploads/' + path.basename(f.path);
-      await db.run(
-        'INSERT INTO images(item_id, image_path, sort_order) VALUES(?,?,?)',
-        id, p, order++
-      );
+      const ext = f.mimetype.split('/')[1] || 'bin';
+      const objectName = `items/${id}/${Date.now()}_${nanoid(6)}.${ext}`;
+      const { error } = await supabase.storage.from('images').upload(objectName, f.buffer, { contentType:f.mimetype });
+      if (error) throw error;
+
+      if (!firstPath) firstPath = objectName;
+      await pool.query('INSERT INTO images(item_id,image_path,sort_order) VALUES($1,$2,$3)', [id, objectName, order++]);
     }
 
-    res.redirect(`/item/${id}`);
-  } catch (e) { next(e); }
-});
-
-// Users (admin)
-app.get('/users', requireAdmin, async (req, res, next) => {
-  try {
-    const users = await db.all('SELECT id, email, display_name, verified, role, created_at FROM users ORDER BY created_at DESC LIMIT 200');
-    res.render('users', { users });
-  } catch (e) { next(e); }
-});
-
-// Auth (simple)
-app.get('/login', (req, res) => res.render('auth-login'));
-app.post('/login', express.urlencoded({ extended: true }), async (req, res) => {
-  const { email, password } = req.body;
-  const u = await db.get('SELECT * FROM users WHERE email=?', email.trim().toLowerCase());
-  if (!u) return res.status(401).send('Sai thông tin đăng nhập');
-  const ok = await bcrypt.compare(password || '', u.password_hash);
-  if (!ok) return res.status(401).send('Sai thông tin đăng nhập');
-  req.session.user = { id: u.id, email: u.email, display_name: u.display_name, role: u.role, verified: !!u.verified };
-  res.redirect('/');
-});
-app.post('/logout', (req, res) => { req.session.destroy(() => res.redirect('/')); });
-
-/// Contact
-app.get('/contact', (req, res) => res.render('contact')); // phải trùng tên file contact.ejs
-
-// Register
-app.get('/register', (req, res) => res.render('register')); // phải trùng tên file register.ejs
-app.get('/signup',  (req, res) => res.redirect('/register')); // alias nếu lỡ có nơi trỏ /signup
-
-app.post('/register', express.urlencoded({ extended: true }), async (req, res, next) => {
-  try {
-    const email   = (req.body.email || '').trim().toLowerCase();
-    const display = (req.body.display_name || '').trim() || email.split('@')[0];
-    const pass    = req.body.password || '';
-    if (!email || !pass) return res.status(400).send('Thiếu email hoặc mật khẩu');
-
-    const existed = await db.get('SELECT id FROM users WHERE email=?', email);
-    if (existed) return res.status(400).send('Email đã được đăng ký');
-
-    const hash = await bcrypt.hash(pass, 10);
-    const r = await db.run(
-      'INSERT INTO users(email, password_hash, display_name, verified, role) VALUES(?,?,?,?,?)',
-      email, hash, display, 0, 'user'
+    await pool.query(
+      `INSERT INTO items(id,title,description,image_path,start_price,min_increment,end_time,status,owner_id)
+       VALUES($1,$2,$3,$4,$5,$6,$7,'active',$8)`,
+      [id, title.trim(), description.trim(), firstPath, parseFloat(start_price)||0, parseFloat(min_increment)||1, end_time?new Date(end_time).toISOString():null, req.session.user?.id||null]
     );
 
-    req.session.user = { id: r.lastID, email, display_name: display, role: 'user', verified: 0 };
-    res.redirect('/');
-  } catch (e) { next(e); }
+    res.redirect(`/item/${id}`);
+  } catch(e){ next(e); }
 });
 
-// Alias cho /signup nếu menu/cũ còn trỏ tới
-app.get('/signup', (req, res) => res.redirect('/register'));
-
-
 // Static pages
-app.get('/about', (req, res) => res.render('about'));
-app.get('/terms', (req, res) => res.render('terms'));
-app.get('/privacy', (req, res) => res.render('terms')); // dùng chung template nếu chưa có
-
-// 404
-app.use((req, res) => res.status(404).render('404'));
+app.get('/about',(req,res)=>res.render('about'));
+app.get('/terms',(req,res)=>res.render('terms'));
+app.use((req,res)=>res.status(404).render('404'));
 
 // Error handler
-app.use((err, req, res, next) => {
-  console.error('❌ Error:', err.message);
-  res.status(500).send(err.message || 'Internal Server Error');
+app.use((err,req,res,next)=>{
+  console.error('❌',err.message);
+  res.status(500).send(err.message||'Internal Error');
 });
 
 // ---------- BOOT ----------
 const port = process.env.PORT || 3000;
-await initDb();
-app.listen(port, () => {
-  console.log(`Auction Gallery PRO listening on http://localhost:${port}`);
-});
+app.listen(port, ()=> console.log(`✅ App on http://localhost:${port}`));

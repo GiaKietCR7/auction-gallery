@@ -23,4 +23,33 @@
   </div>
 <% } %>
 
+<% if (pager && pager.totalPages > 1) { %>
+  <div class="mt-8 flex items-center justify-center gap-2">
+    <% const qstr = pager.q ? ('q=' + encodeURIComponent(pager.q) + '&') : ''; %>
+
+    <% if (pager.hasPrev) { %>
+      <a class="px-3 py-1 border rounded-full hover:bg-mist"
+         href="/?<%= qstr %>page=<%= pager.prev %>">‹ Prev</a>
+    <% } else { %>
+      <span class="px-3 py-1 border rounded-full text-ink/40">‹ Prev</span>
+    <% } %>
+
+    <% for (let i = Math.max(1, pager.page - 2); i <= Math.min(pager.totalPages, pager.page + 2); i++) { %>
+      <% if (i === pager.page) { %>
+        <span class="px-3 py-1 rounded-full bg-ink text-white"><%= i %></span>
+      <% } else { %>
+        <a class="px-3 py-1 border rounded-full hover:bg-mist"
+           href="/?<%= qstr %>page=<%= i %>"><%= i %></a>
+      <% } %>
+    <% } %>
+
+    <% if (pager.hasNext) { %>
+      <a class="px-3 py-1 border rounded-full hover:bg-mist"
+         href="/?<%= qstr %>page=<%= pager.next %>">Next ›</a>
+    <% } else { %>
+      <span class="px-3 py-1 border rounded-full text-ink/40">Next ›</span>
+    <% } %>
+  </div>
+<% } %>
+
 <%- include('partials/foot') %>   <!-- chỉ 1 lần ở đây -->

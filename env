@@ -1,0 +1,11 @@
+PORT=3000
+SESSION_SECRET=my-secret-session
+ADMIN_KEY=admin123
+
+SUPABASE_URL=https://qvkklknkvaesabifrqwi.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF2a2tsa25rdmFlc2FiaWZycXdpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTQ5MTQ0MCwiZXhwIjoyMDc1MDY3NDQwfQ.aaLFrH1IEsb0fJMdD9-E1HDfJODXSQ4S6JPGwuSz3ZU
+
+DATABASE_URL=postgresql://postgres:Giakiet2511@db.qvkklknkvaesabifrqwi.supabase.co:5432/postgres
+
+SITE_NAME=Ivan Laliash Vili
+SUPPORT_EMAIL=ipr@ivanlaliashvili.art
