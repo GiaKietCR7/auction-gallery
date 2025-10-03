@@ -37,6 +37,7 @@ if (!DB_FILE.startsWith('/tmp')) fs.mkdirSync(path.dirname(DB_FILE), { recursive
 
 // ---------- App ----------
 const app = express();
+if (process.env.RENDER) app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.disable('x-powered-by');
