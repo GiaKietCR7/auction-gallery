@@ -396,31 +396,31 @@ app.post('/login', express.urlencoded({ extended: true }), async (req, res) => {
 });
 app.post('/logout', (req, res) => { req.session.destroy(() => res.redirect('/')); });
 
-// --- Register ---
-app.get('/register', (req, res) => res.render('auth-register'));
+// Đăng ký
+app.get('/register', (req, res) => res.render('register'));  // <-- trùng tên file
 
 app.post('/register', express.urlencoded({ extended: true }), async (req, res, next) => {
   try {
-    const email = (req.body.email || '').trim().toLowerCase();
+    const email   = (req.body.email || '').trim().toLowerCase();
     const display = (req.body.display_name || '').trim() || email.split('@')[0];
-    const password = req.body.password || '';
-
-    if (!email || !password) return res.status(400).send('Thiếu email hoặc mật khẩu');
+    const pass    = req.body.password || '';
+    if (!email || !pass) return res.status(400).send('Thiếu email hoặc mật khẩu');
 
     const existed = await db.get('SELECT id FROM users WHERE email=?', email);
     if (existed) return res.status(400).send('Email đã được đăng ký');
 
-    const hash = await bcrypt.hash(password, 10);
+    const hash = await bcrypt.hash(pass, 10);
     const r = await db.run(
       'INSERT INTO users(email, password_hash, display_name, verified, role) VALUES(?,?,?,?,?)',
       email, hash, display, 0, 'user'
     );
-
-    // auto login
     req.session.user = { id: r.lastID, email, display_name: display, role: 'user', verified: 0 };
     res.redirect('/');
   } catch (e) { next(e); }
 });
+
+// Alias cho /signup nếu menu/cũ còn trỏ tới
+app.get('/signup', (req, res) => res.redirect('/register'));
 
 
 // Static pages
