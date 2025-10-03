@@ -1,36 +1,26 @@
 <%- include('partials/head', { title: 'Gallery' }) %>
+
 <h1 class="font-serif text-3xl mb-6">Gallery</h1>
-<% if (!items || !items.length) { %>
-  <div class="text-ink/60">No items yet. <a class="link" href="/admin/upload">Upload a work</a>.</div>
-<% } else { %>
-  <!-- ... keep your grid as-is ... -->
-<% } %>
-<%- include('partials/foot') %>
-
 
 <% if (!items || !items.length) { %>
-  <div class="text-ink/60">Chưa có tác phẩm nào. Vào <a class="link" href="/admin/upload?key=<%= encodeURIComponent(process.env.ADMIN_KEY || '') %>">đăng tác phẩm</a>.</div>
+  <p class="text-ink/60">
+    No items yet. <a class="link" href="/admin/upload">Upload a work</a>.
+  </p>
 <% } else { %>
-  <div class="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+  <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
     <% items.forEach(function(it){ %>
       <a href="/item/<%= it.id %>" class="block group">
-        <div class="aspect-[4/3] overflow-hidden rounded-2xl shadow-card">
-          <img src="<%= it.image_path %>" alt="<%= it.title %>" class="w-full h-full object-cover group-hover:scale-[1.02] transition" />
+        <div class="aspect-[4/3] rounded-2xl overflow-hidden shadow-card bg-mist">
+          <img src="<%= it.image_path %>" alt="<%= it.title %>"
+               class="w-full h-full object-cover group-hover:scale-[1.02] transition" />
         </div>
         <div class="mt-2">
           <div class="font-medium"><%= it.title %></div>
-          <div class="text-[13px] text-ink/60">
-            Giá hiện tại:
-            $<%= (it.topBid ?? it.start_price).toFixed(2) %>
-            · Lượt đặt giá: <%= it.bidCount %>
-            <% if (it.ended) { %>
-              · <span class="text-red-600">Đã kết thúc</span>
-            <% } %>
-          </div>
+          <div class="text-[13px] text-ink/60">$<%= it.start_price.toFixed(2) %></div>
         </div>
       </a>
     <% }) %>
   </div>
 <% } %>
 
-<%- include('partials/foot') %>
+<%- include('partials/foot') %>   <!-- chỉ 1 lần ở đây -->
