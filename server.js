@@ -235,19 +235,33 @@ app.post('/admin/upload', upload.array('images', 12), requireAdmin, async (req, 
 app.get('/login', (req, res) => res.render('auth-login'));
 app.post('/login', async (req, res, next) => {
   try {
-    const { email, password } = req.body;
-    const q = await pool.query('SELECT id, email, password_hash, display_name, role FROM users WHERE email=$1', [
-      String(email || '').trim().toLowerCase(),
-    ]);
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
+
+    const q = await pool.query(
+      'SELECT id, email, password_hash, display_name, role FROM users WHERE email=$1',
+      [email]
+    );
     const u = q.rows[0];
-    if (!u) return res.status(401).render('auth-login', { error: 'Tài khoản không tồn tại' });
-    const ok = await bcrypt.compare(String(password || ''), u.password_hash);
-    if (!ok) return res.status(401).render('auth-login', { error: 'Sai mật khẩu' });
+    if (!u) {
+      return res.status(401).render('auth-login', {
+        error: 'Account not found',
+        email
+      });
+    }
+    const ok = await bcrypt.compare(password, u.password_hash);
+    if (!ok) {
+      return res.status(401).render('auth-login', {
+        error: 'Wrong password',
+        email
+      });
+    }
     req.session.user = { id: u.id, email: u.email, name: u.display_name, role: u.role };
-    res.redirect('/');
-  } catch (e) { next(e); }
+    return res.redirect('/');
+  } catch (e) {
+    next(e);
+  }
 });
-app.post('/logout', (req, res) => { req.session.destroy(() => res.redirect('/')); });
 
 // Health & Storage checks (gỡ khi xong)
 app.get('/_health', async (req, res) => {
