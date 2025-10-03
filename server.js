@@ -221,9 +221,7 @@ app.post('/item/:id/bid', async (req, res, next) => {
 });
 
 // Upload form
-app.get('/admin/upload', requireAdmin, (req, res) => {
-  res.render('upload', { adminKey: req.query.admin_key || '' });
-});
+app.post('/admin/upload', upload.array('images', 12), requireAdmin, async (req, res, next) => {
 
 // Handle upload — INSERT item trước, rồi upload ảnh + insert images, cuối cùng update image_path
 app.post('/admin/upload', requireAdmin, upload.array('images', 12), async (req, res, next) => {
