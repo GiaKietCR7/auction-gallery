@@ -13,7 +13,8 @@ import { nanoid } from 'nanoid';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import pkg from 'pg';
-
+import fs from 'fs';
+import { Reader } from '@maxmind/geoip2-node';
 // bcrypt fallback (native -> js)
 let bcrypt;
 try {
@@ -55,7 +56,6 @@ const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'ipr@ivanlaliashvili.art';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'admin123';
 
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
-app.use('/public', express.static(path.join(__dirname, 'public'), { maxAge: '7d', etag: true }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(express.json());
 app.use(rateLimit({ windowMs: 60 * 1000, max: 300 }));
@@ -79,6 +79,75 @@ app.use((req, res, next) => {
   res.locals.getImageUrl = (p) => supabase.storage.from('images').getPublicUrl(p).data.publicUrl;
   next();
 });
+
+// ===== GEO-BLOCK: Ẩn web tại VN nhưng cho admin/whitelist vào được =====
+let geoReader;
+(async () => {
+  try {
+    const db = fs.readFileSync('./geo/GeoLite2-Country.mmdb');
+    geoReader = await Reader.openBuffer(db);
+    console.log('[GeoIP] Database loaded');
+  } catch (e) {
+    console.error('[GeoIP] Failed to load DB:', e?.message || e);
+  }
+})();
+
+const IP_ALLOWLIST = new Set([
+  // '1.2.3.4', // (tuỳ chọn) IP tĩnh của bạn
+]);
+
+// Dùng ADMIN_KEY có sẵn để bypass qua query/header
+const ADMIN_SECRET = process.env.ADMIN_KEY || process.env.ADMIN_SECRET || 'admin123';
+
+const getClientIp = (req) => {
+  const raw = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString();
+  let ip = raw.split(',')[0].trim();
+  if (ip.startsWith('::ffff:')) ip = ip.slice(7);
+  return ip;
+};
+
+const SKIP_PATH_PREFIX = ['/favicon.ico', '/_health', '/_sb']; // path không cần chặn
+
+app.use((req, res, next) => {
+  try {
+    if (SKIP_PATH_PREFIX.some(p => req.path.startsWith(p))) return next();
+
+    // 1) Đường bí mật cho admin: ?admin_key=ADMIN_KEY hoặc header x-admin-key
+    const key = req.get('x-admin-key') || req.query.admin_key;
+    if (key && key === ADMIN_SECRET) return next();
+
+    // 2) Admin đã login (đã có sẵn session.user.role)
+    if (req.session?.user?.role === 'admin') return next();
+
+    // 3) IP whitelist
+    const ip = getClientIp(req);
+    if (IP_ALLOWLIST.has(ip)) return next();
+
+    // 4) tra quốc gia
+    if (!geoReader) return next(); // fail-open nếu DB chưa sẵn sàng
+
+    let cc = '';
+    try {
+      const resp = geoReader.country(ip);
+      cc = (resp?.country?.isoCode || '').toUpperCase();
+    } catch (e) {
+      // lookup lỗi (private IP, etc.) -> cho qua
+      cc = '';
+    }
+
+    // 5) chặn VN
+    if (cc === 'VN') {
+      return res.redirect(302, '/unavailable'); // hoặc res.status(451).render('blocked');
+    }
+  } catch {
+    // nếu lookup lỗi thì cho qua để tránh block nhầm
+  }
+  next();
+});
+// ===== END GEO-BLOCK =====
+
+// ⚠️ Static assets: đặt sau GEO-BLOCK để VN không tải asset trước khi bị block
+app.use('/public', express.static(path.join(__dirname, 'public'), { maxAge: '7d', etag: true }));
 
 // ===== Multer (memory) =====
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
@@ -408,6 +477,18 @@ app.get('/_health', async (req, res) => {
 app.get('/_sb', async (req, res) => {
   const { data, error } = await supabase.storage.from('images').list('', { limit: 1 });
   res.json({ ok: !error, error: error?.message, data });
+});
+
+// ===== Unavailable (region block) =====
+app.get('/unavailable', (req, res) => {
+  try { return res.status(451).render('blocked'); }
+  catch {
+    return res.status(451).send(`
+      <style>body{font-family:sans-serif;text-align:center;margin-top:20vh}</style>
+      <h1>Service Unavailable in Your Region</h1>
+      <p>This website isn’t available in your location.</p>
+    `);
+  }
 });
 
 // ===== 404 & error =====
