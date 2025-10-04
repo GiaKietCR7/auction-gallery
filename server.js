@@ -105,18 +105,17 @@ const IP_ALLOWLIST = new Set([
 const ADMIN_SECRET = process.env.ADMIN_KEY || process.env.ADMIN_SECRET || 'admin123';
 
 const getClientIp = (req) => {
-  // Render gửi X-Forwarded-For = "clientIP, proxyIP, internal"
   const xff = req.headers['x-forwarded-for'];
   if (xff) {
-    const ips = xff.split(',').map(ip => ip.trim()).filter(Boolean);
-    // lấy IP đầu tiên trong danh sách (IP người dùng thật)
-    let clientIp = ips[0];
-    if (clientIp.startsWith('::ffff:')) clientIp = clientIp.slice(7);
-    return clientIp;
+    const ips = xff.split(',').map(s => s.trim()).filter(Boolean);
+    let ip = ips[0];
+    if (ip.startsWith('::ffff:')) ip = ip.slice(7);
+    return ip;
   }
-  const socketIp = req.socket?.remoteAddress || '';
-  return socketIp.startsWith('::ffff:') ? socketIp.slice(7) : socketIp;
+  const sock = req.socket?.remoteAddress || '';
+  return sock.startsWith('::ffff:') ? sock.slice(7) : sock;
 };
+
 
 
 const SKIP_PATH_PREFIX = ['/favicon.ico', '/_health', '/_sb']; // path không cần chặn

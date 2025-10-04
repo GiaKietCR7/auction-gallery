@@ -2,13 +2,15 @@
   "name": "auction-gallery",
   "version": "1.0.0",
   "type": "module",
-  "engines": {
-    "node": ">=18 <23"
-  },
+  "engines": { "node": ">=18 <23" },
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon --ext js,ejs --watch server.js --watch views --watch public server.js",
-    "start:prod": "node server.js"
+    "start:prod": "node server.js",
+
+    // ↓↓↓ thêm 2 script để tải GeoLite khi build ↓↓↓
+    "fetch-geolite": "mkdir -p geo && curl -L -o ./geo/GeoLite2-Country.tar.gz \"$GEOLITE_PERMALINK\" && tar -xzf ./geo/GeoLite2-Country.tar.gz -C ./geo && mv ./geo/GeoLite2-Country_*/GeoLite2-Country.mmdb ./geo/GeoLite2-Country.mmdb && rm -rf ./geo/GeoLite2-Country_* ./geo/GeoLite2-Country.tar.gz",
+    "postinstall": "npm run fetch-geolite"
   },
   "dependencies": {
     "@maxmind/geoip2-node": "^6.1.0",
