@@ -24,8 +24,20 @@
     </div>
   </div>
 
-  <!-- Right visual panel (keeps layout tidy; swap for an image if you want) -->
-  <div class="rounded-2xl bg-mist h-64 md:h-72"></div>
+  <!-- Right visual: hero image pulled from Supabase Storage (bucket 'images') -->
+  <div class="rounded-2xl overflow-hidden h-64 md:h-72 relative">
+    <img
+      id="heroImg"
+      src="<%= getImageUrl('banners/hero.jpg') %>"
+      alt="Curated art gallery interior"
+      class="w-full h-full object-cover"
+      loading="eager"
+      fetchpriority="high"
+      onerror="this.style.display='none'; document.getElementById('heroFallback').style.display='block';"
+    />
+    <!-- Fallback if the image is missing -->
+    <div id="heroFallback" class="hidden absolute inset-0 bg-mist"></div>
+  </div>
 </section>
 
 <!-- Top bar: title + search -->
