@@ -45,11 +45,19 @@
         <a class="link" href="/contact">Contact</a>
 
         <% if (currentUser) { %>
-          <a class="link" href="/admin/upload">Upload</a>
-          <span class="text-ink/70">
-            Hello, <span class="font-medium"><%= currentUser.display_name %></span>
-            <% if (currentUser.verified) { %> <span title="Verified">✔️</span> <% } %>
+          <% if ((String(currentUser.role || '').toLowerCase()) === 'admin') { %>
+            <a class="link" href="/admin/upload">Upload</a>
+          <% } %>
+
+          <span class="text-ink/70 flex items-center gap-2">
+            Hello, <span class="font-medium"><%= currentUser.name || currentUser.email %></span>
+            <% if (currentUser.verified) { %>
+              <span class="inline-flex items-center gap-1 text-green-700 bg-green-100 rounded-full px-2 py-0.5 text-[12px]" title="Verified">
+                ✔ Verified
+              </span>
+            <% } %>
           </span>
+
           <form action="/logout" method="POST">
             <button class="border px-3 py-1.5 rounded-full text-[13px]">Sign out</button>
           </form>
@@ -61,7 +69,12 @@
 
       <div class="md:hidden flex items-center gap-2">
         <% if (currentUser) { %>
-          <a href="/admin/upload" class="border px-3 py-1.5 rounded-full text-[13px]">Upload</a>
+          <% if ((String(currentUser.role || '').toLowerCase()) === 'admin') { %>
+            <a href="/admin/upload" class="border px-3 py-1.5 rounded-full text-[13px]">Upload</a>
+          <% } %>
+          <form action="/logout" method="POST">
+            <button class="border px-3 py-1.5 rounded-full text-[13px]">Sign out</button>
+          </form>
         <% } else { %>
           <a href="/login" class="border px-3 py-1.5 rounded-full text-[13px]">Sign in</a>
         <% } %>

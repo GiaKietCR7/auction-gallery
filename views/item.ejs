@@ -1,5 +1,8 @@
 <%- include('partials/head', { title: item.title }) %>
 
+<% /* an toàn nếu server chưa truyền owner */ %>
+<% var _owner = (typeof owner !== 'undefined' && owner) ? owner : null; %>
+
 <div class="grid lg:grid-cols-2 gap-10">
   <div>
     <div class="relative">
@@ -13,7 +16,11 @@
     <% if (gallery.length > 1) { %>
       <div class="mt-3 grid grid-cols-6 gap-2">
         <% gallery.forEach(function(g, idx){ %>
-          <img data-idx="<%= idx %>" src="<%= getImageUrl(g) %>" class="thumb border rounded cursor-pointer h-16 w-full object-cover <%= idx===0 ? 'ring-2 ring-black' : '' %>" />
+          <img
+            data-idx="<%= idx %>"
+            src="<%= getImageUrl(g) %>"
+            class="thumb border rounded cursor-pointer h-16 w-full object-cover <%= idx===0 ? 'ring-2 ring-black' : '' %>"
+          />
         <% }) %>
       </div>
     <% } %>
@@ -21,6 +28,35 @@
 
   <div class="space-y-6">
     <h1 class="font-serif text-4xl leading-tight"><%= item.title %></h1>
+
+    <!-- Chủ bài & badge verified -->
+    <div class="text-ink/70 text-sm">
+      <% if (_owner) { %>
+        Seller:
+        <strong><%= _owner.display_name || _owner.email %></strong>
+        <% if (_owner.verified) { %>
+          <span class="ml-2 inline-flex items-center gap-1 text-green-700 bg-green-100 rounded-full px-2 py-0.5 text-xs">
+            ✔ Verified
+          </span>
+        <% } %>
+      <% } else { %>
+        <em>Unknown seller</em>
+      <% } %>
+    </div>
+
+    <!-- Nút admin: Edit + Delete -->
+    <% if (currentUser && (String(currentUser.role || '').toLowerCase() === 'admin')) { %>
+      <div class="flex gap-2">
+        <a href="/items/<%= item.id %>/edit" class="px-3 py-1 border rounded">Edit</a>
+        <form method="post"
+              action="/item/<%= item.id %>/delete"
+              onsubmit="return confirm('Xoá vĩnh viễn item này?');"
+              style="display:inline">
+          <button class="px-3 py-1 border rounded bg-red-600 text-white">Delete</button>
+        </form>
+      </div>
+    <% } %>
+
     <p class="text-ink/70"><%= item.description %></p>
 
     <div class="border rounded-2xl p-5">
@@ -41,7 +77,6 @@
       </div>
     </div>
 
-    <!-- Bỏ phần owner vì server chưa truyền biến owner -->
     <% if (!item.ended && item.status==='active') { %>
       <form action="/item/<%= item.id %>/bid" method="POST" class="border rounded-2xl p-5 space-y-3">
         <div class="font-medium">Place a bid</div>

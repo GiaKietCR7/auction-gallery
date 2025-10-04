@@ -1,5 +1,4 @@
-// server.js — Supabase ESM version (UPDATED: RBAC + verify + safe views)
-
+// server.js — Supabase ESM (FULL: RBAC + verify + owner + edit/delete + upload)
 import 'dotenv/config';
 import dns from 'dns';
 if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first');
@@ -14,14 +13,17 @@ import { nanoid } from 'nanoid';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import pkg from 'pg';
+
+// bcrypt fallback (native -> js)
 let bcrypt;
 try {
-  ({ default: bcrypt } = await import('bcrypt'));      // native
+  ({ default: bcrypt } = await import('bcrypt'));   // native
   console.log('[bcrypt] using native bcrypt');
-} catch (e) {
-  ({ default: bcrypt } = await import('bcryptjs'));    // fallback
+} catch {
+  ({ default: bcrypt } = await import('bcryptjs')); // fallback
   console.log('[bcrypt] fallback to bcryptjs');
 }
+
 const { Pool } = pkg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,17 +63,22 @@ app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { httpOnly: true, sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', secure: !!process.env.RENDER, maxAge: 1000 * 60 * 60 * 24 * 7 },
+  cookie: {
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: !!process.env.RENDER,
+    maxAge: 1000 * 60 * 60 * 24 * 7,
+  },
 }));
 
+// locals (đặt SAU session)
 app.use((req, res, next) => {
-  res.locals.SITE_NAME = SITE_NAME;   // <- để head.ejs dùng được
+  res.locals.SITE_NAME = SITE_NAME;
   res.locals.SUPPORT_EMAIL = SUPPORT_EMAIL;
   res.locals.currentUser = req.session?.user || null;
   res.locals.getImageUrl = (p) => supabase.storage.from('images').getPublicUrl(p).data.publicUrl;
   next();
 });
-
 
 // ===== Multer (memory) =====
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
@@ -84,7 +91,10 @@ function computeEnded(row) {
 }
 
 async function enrichItem(row) {
-  const agg = await pool.query('SELECT COUNT(*)::int AS bidcount, MAX(amount) AS topbid FROM bids WHERE item_id=$1', [row.id]);
+  const agg = await pool.query(
+    'SELECT COUNT(*)::int AS bidcount, MAX(amount) AS topbid FROM bids WHERE item_id=$1',
+    [row.id]
+  );
   return {
     ...row,
     start_price: row.start_price == null ? 0 : Number(row.start_price),
@@ -114,6 +124,8 @@ async function ensureVerifiedUser(req, res, next) {
 }
 
 // ===== Routes =====
+
+// Home + search + paginate
 app.get('/', async (req, res, next) => {
   try {
     const PAGE_SIZE = 8;
@@ -131,7 +143,8 @@ app.get('/', async (req, res, next) => {
     const offset = (pageSafe - 1) * PAGE_SIZE;
 
     const items = await pool.query(
-      `SELECT * FROM items ${whereSQL} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      `SELECT * FROM items ${whereSQL} ORDER BY created_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
       [...params, PAGE_SIZE, offset]
     );
 
@@ -141,21 +154,40 @@ app.get('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Item detail (kèm owner)
 app.get('/item/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+
     const itemRes = await pool.query('SELECT * FROM items WHERE id=$1', [id]);
     if (!itemRes.rows.length) return res.status(404).render('404');
+    const itemRow = itemRes.rows[0];
 
-    const images = await pool.query('SELECT * FROM images WHERE item_id=$1 ORDER BY sort_order, id', [id]);
-    const gallery = images.rows.length ? images.rows.map((i) => i.image_path) : [itemRes.rows[0].image_path];
-    const bids = await pool.query('SELECT bidder, amount, created_at FROM bids WHERE item_id=$1 ORDER BY amount DESC', [id]);
+    // chủ bài để show tên + verified
+    let owner = null;
+    if (itemRow.owner_id) {
+      const o = await pool.query(
+        'SELECT id, display_name, email, role, verified FROM users WHERE id=$1',
+        [itemRow.owner_id]
+      );
+      owner = o.rows[0] || null;
+    }
 
-    const full = await enrichItem(itemRes.rows[0]);
-    res.render('item', { item: full, gallery, imagesFull: images.rows, bids: bids.rows });
+    // gallery + bids
+    const images = await pool.query(
+      'SELECT * FROM images WHERE item_id=$1 ORDER BY sort_order, id', [id]
+    );
+    const gallery = images.rows.length ? images.rows.map(i => i.image_path) : [itemRow.image_path];
+    const bids = await pool.query(
+      'SELECT bidder, amount, created_at FROM bids WHERE item_id=$1 ORDER BY amount DESC', [id]
+    );
+
+    const full = await enrichItem(itemRow);
+    res.render('item', { item: full, owner, gallery, imagesFull: images.rows, bids: bids.rows });
   } catch (e) { next(e); }
 });
-// Xác nhận xoá (optional)
+
+// Delete confirm (optional)
 app.get('/item/:id/delete', requireAdmin, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -165,46 +197,66 @@ app.get('/item/:id/delete', requireAdmin, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// Thực hiện xoá
+// Delete action (admin)
 app.post('/item/:id/delete', requireAdmin, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Lấy danh sách path ảnh để xoá trên Storage
-    const { rows: imgs } = await pool.query(
-      'select image_path from images where item_id=$1',
-      [id]
-    );
-    // + cả ảnh đại diện trong items (có thể trùng với 1 ảnh trên)
-    const { rows: mainImg } = await pool.query(
-      'select image_path from items where id=$1',
-      [id]
-    );
-    const paths = [
-      ...new Set([
-        ...imgs.map(i => i.image_path).filter(Boolean),
-        mainImg[0]?.image_path
-      ])
-    ].filter(Boolean);
+    // gom ảnh để xoá trên Storage
+    const { rows: imgs } = await pool.query('select image_path from images where item_id=$1', [id]);
+    const { rows: mainImg } = await pool.query('select image_path from items where id=$1', [id]);
+    const paths = [...new Set([ ...(imgs||[]).map(i => i.image_path), mainImg[0]?.image_path ])].filter(Boolean);
 
-    // Xoá file trong Supabase Storage (bỏ qua lỗi lẻ tẻ)
     if (paths.length) {
       const { error } = await supabase.storage.from('images').remove(paths);
       if (error) console.warn('[storage.remove]', error.message);
     }
 
-    // Xoá bản ghi DB (images/bids có FK ON DELETE CASCADE)
-    await pool.query('delete from items where id=$1', [id]);
-
-    // (Tùy chọn) xoá cả thư mục prefix `items/{id}/` nếu bạn upload theo prefix
-    // const { data: list } = await supabase.storage.from('images').list(`items/${id}`, { limit: 100 });
-    // if (list?.length) await supabase.storage.from('images').remove(list.map(x => `items/${id}/${x.name}`));
-
+    await pool.query('delete from items where id=$1', [id]); // FK CASCADE on bids/images
     res.redirect('/');
   } catch (e) { next(e); }
 });
 
-// ===== Bids =====
+// Edit (admin)
+app.get('/items/:id/edit', requireAdmin, async (req, res, next) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM items WHERE id=$1', [req.params.id]);
+    if (!rows.length) return res.status(404).render('404');
+    res.render('item-edit', { item: rows[0] });
+  } catch (e) { next(e); }
+});
+
+app.post('/items/:id/update', requireAdmin, async (req, res, next) => {
+  try {
+    const id            = req.params.id;
+    const title         = String(req.body.title || '').trim().slice(0, 200);
+    const description   = String(req.body.description || '').trim();
+    const start_price   = req.body.start_price === '' ? null : Number(req.body.start_price);
+    const min_increment = req.body.min_increment === '' ? null : Number(req.body.min_increment);
+    const statusRaw     = String(req.body.status || 'active').toLowerCase();
+    const end_raw       = String(req.body.end_time || '').trim();
+    const end_time      = end_raw ? new Date(end_raw).toISOString() : null;
+
+    const okStatus = new Set(['active','closed','draft']);
+    const status   = okStatus.has(statusRaw) ? statusRaw : 'active';
+
+    await pool.query(
+      `UPDATE items SET
+         title=$1,
+         description=$2,
+         start_price=$3::numeric,
+         min_increment=$4::numeric,
+         end_time=$5::timestamptz,
+         status=$6
+       WHERE id=$7`,
+      [title, description, start_price, min_increment, end_time, status, id]
+    );
+
+    res.redirect('/item/' + id);
+  } catch (e) { next(e); }
+});
+
+// Bids (user phải verified; admin bypass)
 app.post('/item/:id/bid', ensureVerifiedUser, async (req, res, next) => {
   try {
     const id = req.params.id;
@@ -227,30 +279,40 @@ app.post('/item/:id/bid', ensureVerifiedUser, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ===== Admin: Users (RBAC) =====
+// Admin: dashboard & users
 app.get('/admin', requireAdmin, (req, res) => res.render('admin-dashboard'));
 
 app.get('/admin/users', requireAdmin, async (req, res, next) => {
   try {
-    const { rows: users } = await pool.query('SELECT id, email, display_name, role, verified, created_at FROM users ORDER BY created_at DESC');
+    const { rows: users } = await pool.query(
+      'SELECT id, email, display_name, role, verified, created_at FROM users ORDER BY created_at DESC'
+    );
     res.render('admin-users', { users });
   } catch (e) { next(e); }
 });
 
 app.post('/admin/users/:id/update', requireAdmin, async (req, res, next) => {
   try {
-    const id = Number(req.params.id);
+    const id = req.params.id; // giữ nguyên kiểu (string/uuid/int) tuỳ DB
     const role = (req.body.role || 'user').trim();
     const verified = req.body.verified === 'true';
     if (!['user', 'admin'].includes(role)) return res.status(400).send('role không hợp lệ');
+
     await pool.query('UPDATE users SET role=$1, verified=$2 WHERE id=$3', [role, verified, id]);
-    if (req.session?.user?.id === id) req.session.user.role = role;
+
+    // nếu tự đổi quyền chính mình -> cập nhật session
+    if (req.session?.user?.id == id) {
+      req.session.user.role = role;
+      req.session.user.verified = verified;
+    }
     res.redirect('/admin/users');
   } catch (e) { next(e); }
 });
 
-// ===== Admin: Upload =====
-app.get('/admin/upload', requireAdmin, (req, res) => res.render('upload', { adminKey: req.query.admin_key || '' }));
+// Admin: upload item (gán owner_id = user hiện tại)
+app.get('/admin/upload', requireAdmin, (req, res) =>
+  res.render('upload', { adminKey: req.query.admin_key || '' })
+);
 
 // đặt upload TRƯỚC requireAdmin để đọc admin_key trong multipart nếu cần
 app.post('/admin/upload', upload.array('images', 12), requireAdmin, async (req, res, next) => {
@@ -274,6 +336,7 @@ app.post('/admin/upload', upload.array('images', 12), requireAdmin, async (req, 
       ]
     );
 
+    // upload ảnh -> insert images -> set ảnh đại diện
     let order = 0;
     let firstPath = null;
     for (const f of req.files) {
@@ -284,6 +347,7 @@ app.post('/admin/upload', upload.array('images', 12), requireAdmin, async (req, 
         contentType: f.mimetype || 'application/octet-stream',
       });
       if (error) throw error;
+
       if (!firstPath) firstPath = objectName;
       await pool.query('INSERT INTO images(item_id, image_path, sort_order) VALUES($1,$2,$3)', [id, objectName, order++]);
     }
@@ -300,13 +364,33 @@ app.post('/login', async (req, res, next) => {
   try {
     const email = String(req.body.email || '').trim().toLowerCase();
     const password = String(req.body.password || '');
-    const q = await pool.query('SELECT id, email, password_hash, display_name, role FROM users WHERE email=$1', [email]);
+
+    const q = await pool.query(
+      'SELECT id, email, password_hash, display_name, role, verified FROM users WHERE email=$1',
+      [email]
+    );
     const u = q.rows[0];
-    if (!u) return res.status(401).render('auth-login', { error: 'Tài khoản không tồn tại', email });
+
+    const INVALID = () => res.status(401).render('auth-login', {
+      error: 'Email hoặc mật khẩu không đúng',
+      email
+    });
+    if (!u) return INVALID();
+
     const ok = await bcrypt.compare(password, u.password_hash);
-    if (!ok) return res.status(401).render('auth-login', { error: 'Sai mật khẩu', email });
-    req.session.user = { id: u.id, email: u.email, name: u.display_name, role: u.role };
-    res.redirect('/');
+    if (!ok) return INVALID();
+
+    req.session.regenerate((err) => {
+      if (err) return next(err);
+      req.session.user = {
+        id: u.id,
+        email: u.email,
+        name: u.display_name,
+        role: u.role,
+        verified: !!u.verified,
+      };
+      req.session.save(() => res.redirect('/'));
+    });
   } catch (e) { next(e); }
 });
 
@@ -317,7 +401,9 @@ app.get('/_health', async (req, res) => {
   try {
     const r = await pool.query('select now() as now');
     res.json({ ok: true, db_time: r.rows[0].now, supabase_url: !!process.env.SUPABASE_URL });
-  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 app.get('/_sb', async (req, res) => {
   const { data, error } = await supabase.storage.from('images').list('', { limit: 1 });
@@ -329,7 +415,6 @@ app.use((req, res) => {
   try { return res.status(404).render('404'); }
   catch { return res.status(404).send('404 - Not found'); }
 });
-
 app.use((err, req, res, next) => {
   console.error('❌', err);
   if (req.accepts('html')) {
