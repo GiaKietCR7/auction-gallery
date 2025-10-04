@@ -50,8 +50,8 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.disable('x-powered-by');
 
-const SITE_NAME = process.env.SITE_NAME || 'Auction Gallery PRO';
-const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'support@example.com';
+const SITE_NAME = process.env.SITE_NAME || 'Ivan Laliash Vili';
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'ipr@ivanlaliashvili.art';
 const ADMIN_KEY = process.env.ADMIN_KEY || 'admin123';
 
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
