@@ -46,7 +46,12 @@ const pool = new Pool({
 
 // ===== Express =====
 const app = express();
-if (process.env.RENDER) app.set('trust proxy', 1);
+if (process.env.RENDER) {
+  // Cho phép đọc IP thật từ Render proxy
+  app.set('trust proxy', true);
+  app.set('trust proxy', 'loopback, linklocal, uniquelocal');
+}
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.disable('x-powered-by');
@@ -100,11 +105,19 @@ const IP_ALLOWLIST = new Set([
 const ADMIN_SECRET = process.env.ADMIN_KEY || process.env.ADMIN_SECRET || 'admin123';
 
 const getClientIp = (req) => {
-  const raw = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString();
-  let ip = raw.split(',')[0].trim();
-  if (ip.startsWith('::ffff:')) ip = ip.slice(7);
-  return ip;
+  // Render gửi X-Forwarded-For = "clientIP, proxyIP, internal"
+  const xff = req.headers['x-forwarded-for'];
+  if (xff) {
+    const ips = xff.split(',').map(ip => ip.trim()).filter(Boolean);
+    // lấy IP đầu tiên trong danh sách (IP người dùng thật)
+    let clientIp = ips[0];
+    if (clientIp.startsWith('::ffff:')) clientIp = clientIp.slice(7);
+    return clientIp;
+  }
+  const socketIp = req.socket?.remoteAddress || '';
+  return socketIp.startsWith('::ffff:') ? socketIp.slice(7) : socketIp;
 };
+
 
 const SKIP_PATH_PREFIX = ['/favicon.ico', '/_health', '/_sb']; // path không cần chặn
 
@@ -122,6 +135,7 @@ app.use((req, res, next) => {
     // 3) IP whitelist
     const ip = getClientIp(req);
     if (IP_ALLOWLIST.has(ip)) return next();
+    if (process.env.DEBUG_GEO) console.log('[GeoCheck]', req.path, 'IP:', ip);
 
     // 4) tra quốc gia
     if (!geoReader) return next(); // fail-open nếu DB chưa sẵn sàng
