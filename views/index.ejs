@@ -1,55 +1,77 @@
 <%- include('partials/head', { title: 'Gallery' }) %>
 
-<h1 class="font-serif text-3xl mb-6">Gallery</h1>
-
-<% if (!items || !items.length) { %>
-  <p class="text-ink/60">
-    No items yet. <a class="link" href="/admin/upload">Upload a work</a>.
-  </p>
-<% } else { %>
-  <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-    <% items.forEach(function(it){ %>
-      <a href="/item/<%= it.id %>" class="block group">
-        <div class="aspect-[4/3] rounded-2xl overflow-hidden shadow-card bg-mist">
-          <img src="<%= getImageUrl(it.image_path) %>" alt="<%= it.title %>"
-               class="w-full h-full object-cover group-hover:scale-[1.02] transition" />
-        </div>
-        <div class="mt-2">
-          <div class="font-medium"><%= it.title %></div>
-          <div class="text-[13px] text-ink/60">
-            $<%= Number(it.start_price ?? 0).toFixed(2) %>
-          </div>
-        </div>
-      </a>
-    <% }) %>
+<!-- HERO (English banner) -->
+<section class="grid md:grid-cols-2 gap-8 items-center mb-10">
+  <div>
+    <h1 class="font-serif text-4xl md:text-5xl leading-tight mb-4">
+      Discover & bid on curated works
+    </h1>
+    <p class="text-ink/70 mb-6">
+      We showcase quality, sourced pieces and ensure a safe, transparent buying experience.
+    </p>
+    <div class="flex gap-3">
+      <% const isAdmin = currentUser && String(currentUser.role || '').toLowerCase() === 'admin'; %>
+      <% if (isAdmin) { %>
+        <a href="/admin/upload" class="bg-ink text-white px-5 py-2 rounded-full text-[14px]">
+          Upload artwork
+        </a>
+      <% } else { %>
+        <a href="<%= currentUser ? '/contact' : '/login' %>" class="bg-ink text-white px-5 py-2 rounded-full text-[14px]">
+          <%= currentUser ? 'Contact us' : 'Sign in to upload' %>
+        </a>
+      <% } %>
+      <a href="/about" class="border px-5 py-2 rounded-full text-[14px]">Learn more</a>
+    </div>
   </div>
+
+  <!-- Right visual panel (keeps layout tidy; swap for an image if you want) -->
+  <div class="rounded-2xl bg-mist h-64 md:h-72"></div>
+</section>
+
+<!-- Top bar: title + search -->
+<div class="flex items-center justify-between mb-6">
+  <h2 class="font-serif text-3xl">Gallery</h2>
+  <form method="get" action="/" class="flex items-center gap-2">
+    <input
+      type="text"
+      name="q"
+      value="<%= q || '' %>"
+      placeholder="Search artworks..."
+      class="border rounded-full px-4 py-2 text-[14px]" />
+    <button class="border px-4 py-2 rounded-full text-[14px]">Search</button>
+  </form>
+</div>
+
+<!-- Items grid -->
+<% if (!items.length) { %>
+  <div class="text-ink/60">No items yet.</div>
 <% } %>
 
-<% if (pager && pager.totalPages > 1) { %>
-  <div class="mt-8 flex items-center justify-center gap-2">
-    <% const qstr = pager.q ? ('q=' + encodeURIComponent(pager.q) + '&') : ''; %>
+<div class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+  <% items.forEach(it => { %>
+    <a href="/item/<%= it.id %>" class="block border rounded-2xl overflow-hidden hover:shadow-hover transition">
+      <img src="<%= getImageUrl(it.image_path) %>" alt="<%= it.title %>" class="w-full h-48 object-cover" />
+      <div class="p-4">
+        <div class="font-medium line-clamp-1"><%= it.title %></div>
+        <div class="text-ink/60 text-sm mt-1">
+          Top: $<%= Number((it.topbid ?? it.start_price) ?? 0).toFixed(2) %>
+        </div>
+      </div>
+    </a>
+  <% }) %>
+</div>
 
+<!-- Pagination -->
+<% if (pager.totalPages > 1) { %>
+  <div class="mt-8 flex items-center justify-center gap-3">
     <% if (pager.hasPrev) { %>
-      <a class="px-3 py-1 border rounded-full hover:bg-mist"
-         href="/?<%= qstr %>page=<%= pager.prev %>">‹ Prev</a>
-    <% } else { %>
-      <span class="px-3 py-1 border rounded-full text-ink/40">‹ Prev</span>
+      <a class="border px-3 py-1 rounded"
+         href="/?page=<%= pager.prev %><%= pager.q? '&q='+encodeURIComponent(pager.q):'' %>">Prev</a>
     <% } %>
-
-    <% for (let i = Math.max(1, pager.page - 2); i <= Math.min(pager.totalPages, pager.page + 2); i++) { %>
-      <% if (i === pager.page) { %>
-        <span class="px-3 py-1 rounded-full bg-ink text-white"><%= i %></span>
-      <% } else { %>
-        <a class="px-3 py-1 border rounded-full hover:bg-mist"
-           href="/?<%= qstr %>page=<%= i %>"><%= i %></a>
-      <% } %>
-    <% } %>
-
+    <span>Page <%= pager.page %> / <%= pager.totalPages %></span>
     <% if (pager.hasNext) { %>
-      <a class="px-3 py-1 border rounded-full hover:bg-mist"
-         href="/?<%= qstr %>page=<%= pager.next %>">Next ›</a>
-    <% } else { %>
-      <span class="px-3 py-1 border rounded-full text-ink/40">Next ›</span>
+      <a class="border px-3 py-1 rounded"
+         href="/?page=<%= pager.next %><%= pager.q? '&q='+encodeURIComponent(pager.q):'' %>">Next</a>
     <% } %>
   </div>
 <% } %>
